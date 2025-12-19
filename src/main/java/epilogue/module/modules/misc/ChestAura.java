@@ -30,7 +30,6 @@ public class ChestAura extends Module {
    public final IntValue delay = new IntValue("delay", 200, 0, 2000);
    public final BooleanValue throughWalls = new BooleanValue("through-walls", false);
    public final BooleanValue autoClose = new BooleanValue("auto-close", false);
-   public final BooleanValue debug = new BooleanValue("debug", false);
    private BlockPos targetChest = null;
    private List<BlockPos> openedChests = new ArrayList<>();
    private long lastOpenTime = 0L;
@@ -88,9 +87,6 @@ public class ChestAura extends Module {
    }
 
    private void openChest(BlockPos pos) {
-      if (this.debug.getValue()) {
-         System.out.println("[ChestAura] Starting to rotate toward chest at " + pos);
-      }
 
       mc.thePlayer.setSprinting(false);
       if (this.rotate.getValue()) {
@@ -119,9 +115,6 @@ public class ChestAura extends Module {
       this.openedChests.add(pos);
       this.lastOpenTime = System.currentTimeMillis();
       this.targetChest = null;
-      if (this.debug.getValue()) {
-         System.out.println("[ChestAura] Chest opened at " + pos);
-      }
 
    }
 
@@ -163,8 +156,6 @@ public class ChestAura extends Module {
             if (nearestChest != null) {
                this.targetChest = nearestChest;
                this.openChest(this.targetChest);
-            } else if (this.debug.getValue()) {
-               System.out.println("[ChestAura] No chests found in range");
             }
          }
 
@@ -209,10 +200,6 @@ public class ChestAura extends Module {
       this.isSearching = true;
       this.isRotating = false;
       this.rotatingTo = null;
-      if (this.debug.getValue()) {
-         System.out.println("[ChestAura] Enabled");
-      }
-
    }
 
    public void onDisabled() {
@@ -222,10 +209,6 @@ public class ChestAura extends Module {
       this.isSearching = false;
       this.isRotating = false;
       this.rotatingTo = null;
-      if (this.debug.getValue()) {
-         System.out.println("[ChestAura] Disabled");
-      }
-
    }
 
    public String[] getSuffix() {
