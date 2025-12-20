@@ -10,6 +10,7 @@ import epilogue.module.Module;
 import epilogue.module.modules.movement.LongJump;
 import epilogue.util.*;
 import epilogue.value.values.BooleanValue;
+import epilogue.value.values.IntValue;
 import epilogue.value.values.ModeValue;
 import epilogue.value.values.PercentValue;
 import epilogue.module.modules.render.dynamicisland.notification.ModuleStateManager;
@@ -26,6 +27,7 @@ import net.minecraft.potion.Potion;
 import net.minecraft.util.*;
 import net.minecraft.util.MovingObjectPosition.MovingObjectType;
 import net.minecraft.world.WorldSettings.GameType;
+import net.minecraft.client.settings.KeyBinding;
 import org.lwjgl.opengl.GL11;
 
 import java.awt.*;
@@ -81,10 +83,44 @@ public class Scaffold extends Module {
     public final BooleanValue keepYonPress = new BooleanValue("Keep Y On Press", false, () -> this.keepY.getValue() != 0);
     public final BooleanValue multiplace = new BooleanValue("0 Tick Place", false);
     public final BooleanValue safeWalk = new BooleanValue("Safe Walk", false);
+    public final BooleanValue safe = new BooleanValue("Safe", true, () -> this.tower.getValue() == 3);
+    public final BooleanValue safeOnlySlanting = new BooleanValue("Only Slanting", true, () -> this.safe.getValue() && this.tower.getValue() == 3);
+    public final IntValue safeBlockY = new IntValue("Safe Block Y", 3, 1, 10, () -> this.safe.getValue() && this.tower.getValue() == 3);
+    public final IntValue safeTicks = new IntValue("Safe Ticks", 6, 1, 10, () -> this.safe.getValue() && this.tower.getValue() == 3);
+    public final BooleanValue stopMotion = new BooleanValue("StopMotion", true, () -> this.safe.getValue() && this.tower.getValue() == 3);
+    public final IntValue safeBackMoveBlockY = new IntValue("Safe Back Move Block Y", 6, 1, 10, () -> this.stopMotion.getValue() && this.safe.getValue() && this.tower.getValue() == 3);
+    public final IntValue safeBackMoveTicks = new IntValue("Safe Back Move Ticks", 8, 1, 10, () -> this.stopMotion.getValue() && this.safe.getValue() && this.tower.getValue() == 3);
     public final BooleanValue swing = new BooleanValue("Swing", false);
     public final BooleanValue itemSpoof = new BooleanValue("Item Spoof", true);
-    public final BooleanValue blockCounter = new BooleanValue("AutoBlockIn Counter", false);
+    public final BooleanValue blockCounter = new BooleanValue("Block Counter", false);
     public final BooleanValue textShadow = new BooleanValue("Text Shadow", true, () -> this.blockCounter.getValue());
+
+    private int safeTowerCachedY = Integer.MIN_VALUE;
+    private int safeTowerDisabledTicks = 0;
+    private int safeBackMoveTicksLeft = 0;
+    private boolean safeBackMoveWasPressed = false;
+    private boolean safeBackMoveHolding = false;
+
+    private boolean isSafeSlantingAllowed() {
+        if (!this.safe.getValue() || this.tower.getValue() != 3) {
+            return false;
+        }
+
+        if (!this.safeOnlySlanting.getValue()) {
+            return true;
+        }
+
+        float currentYaw = this.getCurrentYaw();
+        return this.isDiagonal(currentYaw);
+    }
+
+    private boolean isTowerTellySafePaused() {
+        return this.isSafeSlantingAllowed() && this.safeTowerDisabledTicks > 0;
+    }
+
+    private int getEffectiveTowerMode() {
+        return this.isTowerTellySafePaused() ? 0 : this.tower.getValue();
+    }
 
     private boolean shouldStopSprint() {
         if (this.isTowering()) {
@@ -258,9 +294,51 @@ public class Scaffold extends Module {
     @EventTarget(Priority.HIGH)
     public void onUpdate(UpdateEvent event) {
         if (this.isEnabled() && event.getType() == EventType.PRE) {
+            if (this.safeTowerDisabledTicks > 0) {
+                this.safeTowerDisabledTicks--;
+            }
+
+            if (this.safeBackMoveTicksLeft > 0) {
+                this.safeBackMoveTicksLeft--;
+            } else if (this.safeBackMoveHolding) {
+                KeyBinding.setKeyBindState(mc.gameSettings.keyBindBack.getKeyCode(), this.safeBackMoveWasPressed);
+                this.safeBackMoveHolding = false;
+            }
+
+            if (this.isSafeSlantingAllowed() && this.safeTowerDisabledTicks <= 0) {
+                int y = MathHelper.floor_double(mc.thePlayer.posY);
+
+                if (this.safeTowerCachedY == Integer.MIN_VALUE) {
+                    this.safeTowerCachedY = y;
+                }
+
+                int delta = y - this.safeTowerCachedY;
+                if (Math.abs(delta) > this.safeBlockY.getValue()) {
+                    this.safeTowerDisabledTicks = this.safeTicks.getValue();
+                    this.safeTowerCachedY = y;
+                }
+
+                if (this.stopMotion.getValue() && this.safeBackMoveTicksLeft <= 0 && Math.abs(delta) > this.safeBackMoveBlockY.getValue()) {
+                    this.safeBackMoveTicksLeft = this.safeBackMoveTicks.getValue();
+                    if (!this.safeBackMoveHolding) {
+                        this.safeBackMoveWasPressed = mc.gameSettings.keyBindBack.isKeyDown();
+                        this.safeBackMoveHolding = true;
+                    }
+                    KeyBinding.setKeyBindState(mc.gameSettings.keyBindBack.getKeyCode(), true);
+                }
+            } else {
+                this.safeTowerCachedY = Integer.MIN_VALUE;
+                this.safeTowerDisabledTicks = 0;
+                this.safeBackMoveTicksLeft = 0;
+                if (this.safeBackMoveHolding) {
+                    KeyBinding.setKeyBindState(mc.gameSettings.keyBindBack.getKeyCode(), this.safeBackMoveWasPressed);
+                    this.safeBackMoveHolding = false;
+                }
+            }
+
             updateBPS();
             updateScaffoldData();
-            
+
             if (this.rotationTick > 0) {
                 this.rotationTick--;
             }
@@ -289,9 +367,9 @@ public class Scaffold extends Module {
                     for (int i = 0; i < 9; i++) {
                         ItemStack candidate = mc.thePlayer.inventory.getStackInSlot(i);
                         if (ItemUtil.isBlock(candidate)) {
-                          mc.thePlayer.inventory.currentItem = i;
-                          this.blockCount = candidate.stackSize;
-                           break;
+                            mc.thePlayer.inventory.currentItem = i;
+                            this.blockCount = candidate.stackSize;
+                            break;
                         }
                     }
                 }
@@ -397,6 +475,7 @@ public class Scaffold extends Module {
                 if (this.rotationMode.getValue() != 0) {
                     float targetYaw = this.yaw;
                     float targetPitch = this.pitch;
+
                     if (this.towering && (mc.thePlayer.motionY > 0.0 || mc.thePlayer.posY > (double) (this.startY + 1))) {
                         float yawDiff = MathHelper.wrapAngleTo180_float(this.yaw - event.getYaw());
                         float tolerance = this.rotationTick >= 2 ? RandomUtil.nextFloat(90.0F, 95.0F) : RandomUtil.nextFloat(30.0F, 35.0F);
@@ -481,13 +560,23 @@ public class Scaffold extends Module {
     @EventTarget
     public void onStrafe(StrafeEvent event) {
         if (this.isEnabled()) {
+            if (this.isTowerTellySafePaused() && this.stopMotion.getValue()) {
+                if (this.safeBackMoveTicksLeft <= 0) {
+                    event.setForward(0.0F);
+                    event.setStrafe(0.0F);
+                }
+            }
             if (!mc.thePlayer.isCollidedHorizontally
                     && mc.thePlayer.hurtTime <= 5
                     && !mc.thePlayer.isPotionActive(Potion.jump)
                     && mc.gameSettings.keyBindJump.isKeyDown()
                     && ItemUtil.isHoldingBlock()) {
                 int yState = (int) (mc.thePlayer.posY % 1.0 * 100.0);
-                switch (this.tower.getValue()) {
+                switch (this.getEffectiveTowerMode()) {
+                    case 0:
+                        this.towerTick = 0;
+                        this.towerDelay = 0;
+                        return;
                     case 1:
                         switch (this.towerTick) {
                             case 0:
@@ -608,6 +697,13 @@ public class Scaffold extends Module {
                                 this.towerDelay = 0;
                                 return;
                         }
+                    case 3:
+                        if (this.isTowerTellySafePaused()) {
+                            this.towerTick = 0;
+                            this.towerDelay = 0;
+                            return;
+                        }
+                        break;
                     default:
                         this.towerTick = 0;
                         this.towerDelay = 0;
@@ -722,7 +818,6 @@ public class Scaffold extends Module {
         }
     }
 
-
     @EventTarget
     public void onSwap(SwapItemEvent event) {
         if (this.isEnabled()) {
@@ -746,14 +841,20 @@ public class Scaffold extends Module {
         this.towerTick = 0;
         this.towerDelay = 0;
         this.towering = false;
-        
+
+        this.safeTowerCachedY = mc.thePlayer != null ? MathHelper.floor_double(mc.thePlayer.posY) : Integer.MIN_VALUE;
+        this.safeTowerDisabledTicks = 0;
+        this.safeBackMoveTicksLeft = 0;
+        this.safeBackMoveWasPressed = false;
+        this.safeBackMoveHolding = false;
+
         this.lastBPSUpdateTime = System.currentTimeMillis();
         this.lastX = mc.thePlayer.posX;
         this.lastZ = mc.thePlayer.posZ;
         this.distanceThisSecond = 0;
         this.bpsResetTime = System.currentTimeMillis();
         this.currentBPS = 0.0f;
-        
+
         ModuleStateManager.getInstance().setModuleState("Scaffold", true);
         updateScaffoldData();
     }
@@ -763,14 +864,19 @@ public class Scaffold extends Module {
         if (mc.thePlayer != null && this.lastSlot != -1) {
             mc.thePlayer.inventory.currentItem = this.lastSlot;
         }
+        if (this.safeBackMoveHolding) {
+            KeyBinding.setKeyBindState(mc.gameSettings.keyBindBack.getKeyCode(), this.safeBackMoveWasPressed);
+            this.safeBackMoveHolding = false;
+        }
         ModuleStateManager.getInstance().setModuleState("Scaffold", false);
     }
-    
+
     private void updateScaffoldData() {
         ScaffoldData scaffoldData = ScaffoldData.getInstance();
         scaffoldData.setBlocksLeft(getBlocksLeft());
         scaffoldData.setBlocksPerSecond(this.currentBPS);
     }
+
     
     private void updateBPS() {
         if (mc.thePlayer == null) return;
