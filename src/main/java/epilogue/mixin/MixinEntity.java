@@ -1,7 +1,5 @@
 package epilogue.mixin;
 
-import com.viaversion.viaversion.api.protocol.version.ProtocolVersion;
-import de.florianmichael.vialoadingbase.ViaLoadingBase;
 import epilogue.Epilogue;
 import epilogue.event.EventManager;
 import epilogue.events.KnockbackEvent;
@@ -92,11 +90,5 @@ public abstract class MixinEntity {
         } else {
             return boolean1;
         }
-    }
-
-    @ModifyConstant(method = "getCollisionBorderSize", constant = @Constant(floatValue = 0.1F))
-    private float viaforge$fixHitboxSize(float constant) {
-        ProtocolVersion targetVersion = ViaLoadingBase.getInstance().getTargetVersion();
-        return targetVersion.newerThanOrEqualTo(ProtocolVersion.v1_9) ? 0.0F : constant;
     }
 }

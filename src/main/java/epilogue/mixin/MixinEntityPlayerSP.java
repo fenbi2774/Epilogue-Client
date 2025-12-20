@@ -1,7 +1,5 @@
 package epilogue.mixin;
 
-import com.viaversion.viaversion.api.protocol.version.ProtocolVersion;
-import de.florianmichael.vialoadingbase.ViaLoadingBase;
 import epilogue.Epilogue;
 import epilogue.event.EventManager;
 import epilogue.event.types.EventType;
@@ -163,17 +161,5 @@ public abstract class MixinEntityPlayerSP extends MixinEntityPlayer {
             }
         }
         return ((IAccessorEntityLivingBase) entityPlayerSP).getActivePotionsMap().containsKey(potion.id);
-    }
-
-    @ModifyConstant(method = "onUpdateWalkingPlayer", constant = @Constant(doubleValue = 9.0E-4D))
-    private double viaforge$fixPointThree(double constant) {
-        ProtocolVersion targetVersion = ViaLoadingBase.getInstance().getTargetVersion();
-        return targetVersion.newerThanOrEqualTo(ProtocolVersion.v1_18_2) ? 4.0E-8D : constant;
-    }
-
-    @ModifyConstant(method = "onUpdateWalkingPlayer", constant = @Constant(intValue = 20))
-    private int viaforge$fixPosUpdateTicks(int constant) {
-        ProtocolVersion targetVersion = ViaLoadingBase.getInstance().getTargetVersion();
-        return targetVersion.newerThanOrEqualTo(ProtocolVersion.v1_9) ? 19 : constant;
     }
 }

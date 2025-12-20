@@ -1,7 +1,5 @@
 package epilogue.mixin;
 
-import com.viaversion.viaversion.api.protocol.version.ProtocolVersion;
-import de.florianmichael.vialoadingbase.ViaLoadingBase;
 import epilogue.Epilogue;
 import epilogue.event.EventManager;
 import epilogue.events.StrafeEvent;
@@ -74,11 +72,5 @@ public abstract class MixinEntityLivingBase extends MixinEntity {
             }
         }
         return float1;
-    }
-
-    @ModifyConstant(method = "onLivingUpdate", constant = @Constant(doubleValue = 0.005D))
-    private double viaforge$fixMotion(double constant) {
-        ProtocolVersion targetVersion = ViaLoadingBase.getInstance().getTargetVersion();
-        return targetVersion.newerThanOrEqualTo(ProtocolVersion.v1_9) ? 0.003D : constant;
     }
 }

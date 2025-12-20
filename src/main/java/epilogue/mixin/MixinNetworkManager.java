@@ -1,6 +1,5 @@
 package epilogue.mixin;
 
-import de.florianmichael.vialoadingbase.netty.event.CompressionReorderEvent;
 import epilogue.Epilogue;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
@@ -46,11 +45,6 @@ public abstract class MixinNetworkManager {
                 }
             }
         }
-    }
-
-    @Inject(method = "setCompressionTreshold", at = @At("RETURN"))
-    private void viaforge$reorderPipeline(int treshold, CallbackInfo ci) {
-        channel.pipeline().fireUserEventTriggered(new CompressionReorderEvent());
     }
 
     @Inject(
