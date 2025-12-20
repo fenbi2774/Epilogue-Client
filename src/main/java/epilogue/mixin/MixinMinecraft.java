@@ -18,7 +18,6 @@ import net.minecraft.client.settings.KeyBinding;
 import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
-import epilogue.viaforge.ViaForge;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
@@ -61,14 +60,6 @@ public abstract class MixinMinecraft {
     )
     private void postStartGame(CallbackInfo callbackInfo) {
         new Epilogue();
-    }
-
-    @Inject(
-            method = {"startGame"},
-            at = {@At("RETURN")}
-    )
-    private void viaforge$init(CallbackInfo ci) {
-        ViaForge.init();
     }
 
     @Inject(

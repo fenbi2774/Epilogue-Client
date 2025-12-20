@@ -60,10 +60,6 @@ public abstract class MixinNetworkManager {
     )
     private void sendPacket(Packet<?> packet, CallbackInfo callbackInfo) {
         if (!packet.getClass().getName().startsWith("net.minecraft.network.play.server")) {
-            if (epilogue.viaforge.ViaForge.handle(packet)) {
-                callbackInfo.cancel();
-                return;
-            }
             
             PacketEvent event = new PacketEvent(EventType.SEND, packet);
             EventManager.call(event);
