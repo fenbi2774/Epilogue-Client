@@ -35,13 +35,14 @@ public class NoSlow
     private long lastBlockingTime = 0L;
     private boolean isBlinking = false;
     private int blinkTimer = 0;
-    public final ModeValue swordMode = new ModeValue("Sword Mode", 2, new String[]{"None", "Vanilla", "Blink", "Prediction"});
+    private int onGroundTicks = 0;
+    public final ModeValue swordMode = new ModeValue("Sword Mode", 3, new String[]{"None", "Vanilla", "Blink", "Prediction"});
     public final BooleanValue onlyKillAuraAutoBlock = new BooleanValue("Only KillAura AutoBlock", false, () -> this.swordMode.getValue() != 0);
     public final PercentValue swordMotion = new PercentValue("Sword Motion", 100, () -> this.swordMode.getValue() != 0);
     public final BooleanValue swordSprint = new BooleanValue("Sword Sprint", true, () -> this.swordMode.getValue() != 0);
     public final IntValue swordBlinkDelay = new IntValue("Sword Blink Delay", 1, 1, 10, () -> this.swordMode.getValue() == 2);
     public final IntValue swordBlinkDuration = new IntValue("Sword Blink Duration", 2, 1, 5, () -> this.swordMode.getValue() == 2);
-    public final ModeValue foodMode = new ModeValue("Food Mode", 0, new String[]{"None", "Vanilla", "Float", "Blink"});
+    public final ModeValue foodMode = new ModeValue("Food Mode", 0, new String[]{"None", "Vanilla", "Float", "Blink", "Grim"});
     public final PercentValue foodMotion = new PercentValue("Food Motion", 100, () -> this.foodMode.getValue() != 0);
     public final BooleanValue foodSprint = new BooleanValue("Food Sprint", true, () -> this.foodMode.getValue() != 0);
     public final IntValue foodBlinkDelay = new IntValue("Food Blink Delay", 2, 1, 10, () -> this.foodMode.getValue() == 3);
@@ -76,11 +77,18 @@ public class NoSlow
         if (mode == 0 || mode == 8) {
             return false;
         }
-        return aura.isBlocking() || aura.isPlayerBlocking();
+        if (!(aura.isBlocking() || aura.isPlayerBlocking())) {
+            return false;
+        }
+        return aura.shouldAutoBlock();
     }
 
     public boolean isFoodActive() {
         return this.foodMode.getValue() != 0 && ItemUtil.isEating();
+    }
+
+    public boolean isGrimFoodMode() {
+        return this.foodMode.getValue() == 4 && ItemUtil.isEating();
     }
 
     public boolean isBowActive() {
@@ -96,7 +104,7 @@ public class NoSlow
     }
 
     public boolean isPredictionMode() {
-        return this.swordMode.getValue() == 3 && ItemUtil.isHoldingSword();
+        return this.swordMode.getValue() == 3 && this.isSwordActive();
     }
 
     public boolean isAnyActive() {
@@ -173,8 +181,33 @@ public class NoSlow
         boolean isCurrentlyBlocking;
         if (!this.isEnabled()) {
             this.wasBlocking = false;
+            this.onGroundTicks = 0;
             return;
         }
+
+        if (mc.thePlayer != null) {
+            if (mc.thePlayer.onGround) {
+                this.onGroundTicks++;
+            } else {
+                this.onGroundTicks = 0;
+            }
+        }
+
+        boolean isGrimActive = this.isGrimFoodMode();
+        if (isGrimActive) {
+            boolean isMovingForward;
+            if (this.onGroundTicks % 3 != 0 && NoSlow.mc.thePlayer.getItemInUseCount() >= 4) {
+                boolean playerWantsToSprint = NoSlow.mc.gameSettings.keyBindSprint.isKeyDown();
+                isMovingForward = NoSlow.mc.thePlayer.movementInput.moveForward > 0.1f;
+                NoSlow.mc.thePlayer.setSprinting(playerWantsToSprint && isMovingForward);
+            } else {
+                boolean playerWantsToSprint = NoSlow.mc.gameSettings.keyBindSprint.isKeyDown();
+                isMovingForward = NoSlow.mc.thePlayer.movementInput.moveForward > 0.1f;
+                NoSlow.mc.thePlayer.setSprinting(playerWantsToSprint && isMovingForward);
+            }
+            return;
+        }
+
         boolean bl = isCurrentlyBlocking = this.isSwordActive() && PlayerUtil.isUsingItem();
         if (this.isBlinkMode() && this.shouldBlink()) {
             if (this.isSwordActive()) {
