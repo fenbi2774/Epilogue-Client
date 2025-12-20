@@ -41,7 +41,7 @@ public class FakeLag extends Module {
     private Vec3 lastPosition = null;
     private Vec3 currentPosition = null;
     public final FloatValue range = new FloatValue("Start Range", 10.0F, 3.0F, 100.0F);
-    public final IntValue delay = new IntValue("Delay", 150, 0, 1000);
+    public final IntValue delay = new IntValue("Delay", 50, 0, 1000);
     public final BooleanValue weaponsOnly = new BooleanValue("Only Weapons", true);
     public final BooleanValue allowTools = new BooleanValue("Allow Tools", false, this.weaponsOnly::getValue);
     public final BooleanValue teams = new BooleanValue("Teams", true);
