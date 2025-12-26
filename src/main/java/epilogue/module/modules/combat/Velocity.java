@@ -39,10 +39,10 @@ public class Velocity extends Module {
     private boolean attackReduceApplied = false;
 
     public final ModeValue mode = new ModeValue("mode", 0, new String[]{"Vanilla", "JumpReset", "Mix"});
-    public final PercentValue horizontal = new PercentValue("Horizontal", 100);
-    public final PercentValue vertical = new PercentValue("Vertical", 100);
-    public final PercentValue explosionHorizontal = new PercentValue("Explosions Horizontal", 100);
-    public final PercentValue explosionVertical = new PercentValue("Explosions Vertical", 100);
+    public final PercentValue horizontal = new PercentValue("Horizontal", 100, () -> this.mode.getValue() == 0);
+    public final PercentValue vertical = new PercentValue("Vertical", 100, () -> this.mode.getValue() == 0);
+    public final PercentValue explosionHorizontal = new PercentValue("Explosions Horizontal", 100, () -> this.mode.getValue() == 0);
+    public final PercentValue explosionVertical = new PercentValue("Explosions Vertical", 100, () -> this.mode.getValue() == 0);
     public final PercentValue chance = new PercentValue("Change", 100);
     public final BooleanValue fakeCheck = new BooleanValue("Check Fake", true);
     //jump reset
@@ -52,8 +52,6 @@ public class Velocity extends Module {
     public final BooleanValue mixDelay = new BooleanValue("Delay", false, () -> this.mode.getValue() == 2);
     public final IntValue mixDelayTicks = new IntValue("Delay Ticks", 3, 1 , 20, () -> this.mode.getValue() == 2 && this.mixDelay.getValue());
     public final BooleanValue mixDelayOnlyInGround = new BooleanValue("Delay Only In Ground", true, () -> this.mode.getValue() == 2 && this.mixDelay.getValue());
-    //attack reduce(hit select)
-    public final BooleanValue mixAttackReduce = new BooleanValue("AttackReduce", false, () -> this.mode.getValue() == 2);
     //smart air delay
     public final BooleanValue mixSmartAirDelay = new BooleanValue("Smart Air Delay", true, () -> this.mode.getValue() == 2 && this.mixDelay.getValue() && this.mixDelayOnlyInGround.getValue());
     public final IntValue test1 = new IntValue("air1", 4, 1 , 20, () -> this.mode.getValue() == 2 && this.mixDelay.getValue() && this.mixDelayOnlyInGround.getValue() && this.mixSmartAirDelay.getValue());
@@ -81,6 +79,8 @@ public class Velocity extends Module {
     public final BooleanValue mixRotateOnlyInGround = new BooleanValue("Rotate Only In Ground", true, () -> this.mode.getValue() == 2 && this.mixJumpReset.getValue() && this.mixRotate.getValue() && !this.mixRotateOnlyInAir.getValue());
     public final BooleanValue mixAutoMove = new BooleanValue("Auto Move", true, () -> this.mode.getValue() == 2 && this.mixJumpReset.getValue() && this.mixRotate.getValue());
     public final IntValue mixRotateTicks = new IntValue("Rotate Ticks", 3, 1, 20, () -> this.mode.getValue() == 2 && this.mixJumpReset.getValue() && this.mixRotate.getValue());
+    //attack reduce(hit select)
+    public final BooleanValue mixAttackReduce = new BooleanValue("Attack Reduce(Hit Select)", false, () -> this.mode.getValue() == 2);
 
     public Velocity() {
         super("Velocity", false);
