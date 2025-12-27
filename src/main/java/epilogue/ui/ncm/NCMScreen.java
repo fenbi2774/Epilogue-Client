@@ -609,18 +609,26 @@ public class NCMScreen extends BaseScreen {
 
                     float imgX = homeListX + 6;
                     float imgY = rowY + (rowH - cover) / 2f;
-                    RenderUtil.drawRect(imgX, imgY, cover, cover, 0xFF151515);
-                    net.minecraft.util.ResourceLocation loc = CoverTextureCache.getOrRequest(p.coverImgUrl, 64);
-                    if (loc != null) {
-                        ITextureObject tex = Minecraft.getMinecraft().getTextureManager().getTexture(loc);
-                        if (tex != null) {
-                            GlStateManager.pushMatrix();
-                            GlStateManager.enableBlend();
-                            GlStateManager.tryBlendFuncSeparate(770, 771, 1, 0);
-                            GlStateManager.color(1f, 1f, 1f, 1f);
-                            Minecraft.getMinecraft().getTextureManager().bindTexture(loc);
-                            Gui.drawScaledCustomSizeModalRect((int) imgX, (int) imgY, 0f, 0f, 64, 64, cover, cover, 64f, 64f);
-                            GlStateManager.popMatrix();
+
+                    RenderUtil.drawRect(imgX, imgY, cover, cover, 0xFF2A2A2A);
+                    String coverUrl = p.coverImgUrl;
+                    if (coverUrl != null && !coverUrl.isEmpty()) {
+                        net.minecraft.util.ResourceLocation loc = CoverTextureCache.getOrRequest(coverUrl, 64);
+                        if (loc != null) {
+                            ITextureObject tex = Minecraft.getMinecraft().getTextureManager().getTexture(loc);
+                            if (tex != null) {
+                                GlStateManager.pushMatrix();
+                                GlStateManager.enableBlend();
+                                GlStateManager.tryBlendFuncSeparate(770, 771, 1, 0);
+                                GlStateManager.color(1f, 1f, 1f, 0.95f);
+                                Minecraft.getMinecraft().getTextureManager().bindTexture(loc);
+                                Gui.drawScaledCustomSizeModalRect((int) imgX, (int) imgY, 0f, 0f,
+                                        tex.getGlTextureId() > 0 ? 64 : 1,
+                                        tex.getGlTextureId() > 0 ? 64 : 1,
+                                        cover, cover, 64f, 64f);
+                                GlStateManager.popMatrix();
+                                DrawUtil.resetColor();
+                            }
                         }
                     }
 
@@ -652,11 +660,10 @@ public class NCMScreen extends BaseScreen {
             if (loc != null) {
                 ITextureObject tex = Minecraft.getMinecraft().getTextureManager().getTexture(loc);
                 if (tex != null) {
-                    RoundedUtil.drawRound(coverX, coverY, coverSize, coverSize, 4, new java.awt.Color(0xFF151515, true));
+                    //RoundedUtil.drawRound(coverX, coverY, coverSize, coverSize, 4, new java.awt.Color(0xFF151515, true));
                     GlStateManager.pushMatrix();
                     GlStateManager.enableBlend();
-                    GlStateManager.tryBlendFuncSeparate(770, 771, 1, 0);
-                    GlStateManager.color(1f, 1f, 1f, 1f);
+                    GlStateManager.color(1f, 1f, 1f, 0.95f);
                     Minecraft.getMinecraft().getTextureManager().bindTexture(loc);
                     Gui.drawScaledCustomSizeModalRect(coverX, coverY, 0f, 0f, 64, 64, coverSize, coverSize, 64f, 64f);
                     GlStateManager.popMatrix();
@@ -664,13 +671,13 @@ public class NCMScreen extends BaseScreen {
                     GlStateManager.disableBlend();
                     GlStateManager.enableTexture2D();
                 } else {
-                    RenderUtil.drawRect(coverX, coverY, coverSize, coverSize, 0xFF151515);
+                    RenderUtil.drawRect(coverX, coverY, coverSize, coverSize, 0xFF2A2A2A);
                 }
             } else {
-                RenderUtil.drawRect(coverX, coverY, coverSize, coverSize, 0xFF151515);
+                RenderUtil.drawRect(coverX, coverY, coverSize, coverSize, 0xFF2A2A2A);
             }
         } else {
-            RenderUtil.drawRect(coverX, coverY, coverSize, coverSize, 0xFF151515);
+            RenderUtil.drawRect(coverX, coverY, coverSize, coverSize, 0xFF2A2A2A);
         }
         RenderUtil.scissorEnd();
 

@@ -135,6 +135,7 @@ public class Epilogue {
         moduleManager.modules.put(Velocity.class, new Velocity());
         moduleManager.modules.put(ViewClip.class, new ViewClip());
         moduleManager.modules.put(WaterMark.class, new WaterMark());
+        moduleManager.modules.put(WorldTime.class, new WorldTime());
         moduleManager.modules.put(Xray.class, new Xray());
         handler.powerShells.add(new Bind());
         handler.powerShells.add(new Config());
