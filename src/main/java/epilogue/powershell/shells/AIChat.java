@@ -64,7 +64,7 @@ public class AIChat extends PowerShell {
     }
 
     static {
-        String apiKey = "sk-movrcedzngjzsybleueckfciudvjtlvuthuwobldgttbfscv";
+        String apiKey = "sk-npyutikgzaooqrnsqrfmwjwmrbemtcyroyffheaqydsywsiu";
 
         MODEL_CONFIGS.put("siliconflow1", new ModelConfig(
             "siliconflow1",
@@ -101,10 +101,19 @@ public class AIChat extends PowerShell {
             "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B",
             true
         ));
+        MODEL_CONFIGS.put("siliconflow10", new ModelConfig(
+            "siliconflow10",
+            "GLM-9B",
+            apiKey,
+            "https://api.siliconflow.cn/v1/chat/completions",
+            "THUDM/GLM-4-9B-0414",
+            false
+        ));
         MODEL_DISPLAY_NAMES.put("1", "siliconflow1");
         MODEL_DISPLAY_NAMES.put("2", "siliconflow4");
         MODEL_DISPLAY_NAMES.put("3", "siliconflow8");
         MODEL_DISPLAY_NAMES.put("4", "siliconflow9");
+        MODEL_DISPLAY_NAMES.put("5", "siliconflow10");
     }
 
     public AIChat() {
@@ -204,7 +213,7 @@ public class AIChat extends PowerShell {
         ModelConfig currentConfig = MODEL_CONFIGS.get(currentModelId);
         ChatUtil.sendFormatted(String.format(
             "%sAI对话帮助:&r\n" +
-            "%s支持4个AI模型，包含DeepSeek-R1、GLM-4-9B、Kolors等&r\n" +
+            "%s支持5个AI模型，包含DeepSeek-R1、GLM-4-9B、Kolors等&r\n" +
             "%s支持思考过程显示（DeepSeek-R1系列模型）&r\n" +
             "%s使用 .ai models 查看所有可用模型&r\n" +
             "%s当前模型: &o%s&r\n" +

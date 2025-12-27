@@ -34,7 +34,7 @@ public class AimAssist extends Module {
     public final BooleanValue allowTools = new BooleanValue("Allow Tools", false, this.weaponOnly::getValue);
     public final BooleanValue botChecks = new BooleanValue("Bot Check", true);
     public final BooleanValue team = new BooleanValue("Teams", true);
-    
+
     public final ModeValue rotationMode = new ModeValue("Rotation Mode", 0, new String[]{"Normal", "OP Rotation"});
     public final ModeValue yawAlgorithm = new ModeValue("Yaw Algorithm", 0,
         new String[]{"Linear", "SmoothLinear", "EIO", "SkewedUnimodal", "PhysicalSimulation", "SimpleNeuralNetwork"
@@ -60,7 +60,7 @@ public class AimAssist extends Module {
 
     public final BooleanValue stopOnTarget = new BooleanValue("Stop On Target", false);
     public final IntValue delayTick = new IntValue("Delay Tick", 0, 0, 5);
-    
+
     private final OPRotationSystem opRotationSystem = new OPRotationSystem();
     private int tickCounter = 0;
 
@@ -95,7 +95,7 @@ public class AimAssist extends Module {
     private boolean isLookingAtBlock() {
         return mc.objectMouseOver != null && mc.objectMouseOver.typeOfHit == MovingObjectType.BLOCK;
     }
-    
+
     private boolean isLookingAtPlayer(EntityPlayer player) {
         if (mc.objectMouseOver != null && mc.objectMouseOver.typeOfHit == MovingObjectType.ENTITY) {
             if (mc.objectMouseOver.entityHit == player) {
@@ -113,7 +113,7 @@ public class AimAssist extends Module {
     @EventTarget
     public void onTick(TickEvent event) {
         if (this.isEnabled() && event.getType() == EventType.POST && mc.currentScreen == null) {
-            
+
             if (delayTick.getValue() > 0) {
                 tickCounter++;
                 if (tickCounter < delayTick.getValue()) {
@@ -141,20 +141,20 @@ public class AimAssist extends Module {
                             }
                             EntityPlayer player = inRange.get(0);
                             if (!(RotationUtil.distanceToEntity(player) <= 0.0)) {
-                                
+
                                 if (stopOnTarget.getValue() && isLookingAtPlayer(player)) {
                                     return;
                                 }
-                                
+
                                 if (rotationMode.getValue() == 1) {
                                     updateOPRotationSettings();
                                     opRotationSystem.conduct(player);
-                                    
+
                                     if (debugTurnSpeed.getValue()) {
                                         System.out.println("转头速度: " + opRotationSystem.getTurnSpeedPublic());
-                                        System.out.println("角度差异: Yaw=" + opRotationSystem.getDiffRotsData().diffYaw + 
+                                        System.out.println("角度差异: Yaw=" + opRotationSystem.getDiffRotsData().diffYaw +
                                                          ", Pitch=" + opRotationSystem.getDiffRotsData().diffPitch);
-                                        System.out.println("最大角度差异: Yaw=" + opRotationSystem.getMaxDiffRotsData().maxDiffYaw + 
+                                        System.out.println("最大角度差异: Yaw=" + opRotationSystem.getMaxDiffRotsData().maxDiffYaw +
                                                          ", Pitch=" + opRotationSystem.getMaxDiffRotsData().maxDiffPitch);
                                     }
                                 } else {
@@ -184,7 +184,7 @@ public class AimAssist extends Module {
             }
         }
     }
-    
+
     private void updateOPRotationSettings() {
         opRotationSystem.setYawAlgorithm(yawAlgorithm.getModeString());
         opRotationSystem.setPitchAlgorithm(pitchAlgorithm.getModeString());

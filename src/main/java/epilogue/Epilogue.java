@@ -34,6 +34,7 @@ public class Epilogue {
     public static Handler handler;
     public static GuiManager guiManager;
     public static MathUtil rand;
+    public static EventManager eventManager;
 
     public Epilogue() {
         this.init();

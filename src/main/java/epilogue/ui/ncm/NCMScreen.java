@@ -611,25 +611,32 @@ public class NCMScreen extends BaseScreen {
                     float imgY = rowY + (rowH - cover) / 2f;
 
                     RenderUtil.drawRect(imgX, imgY, cover, cover, 0xFF2A2A2A);
+
                     String coverUrl = p.coverImgUrl;
                     if (coverUrl != null && !coverUrl.isEmpty()) {
-                        net.minecraft.util.ResourceLocation loc = CoverTextureCache.getOrRequest(coverUrl, 64);
+                        net.minecraft.util.ResourceLocation loc = CoverTextureCache.getOrRequest(coverUrl, 128);
+
                         if (loc != null) {
+                            GlStateManager.pushMatrix();
+                            GlStateManager.enableBlend();
+                            GlStateManager.tryBlendFuncSeparate(770, 771, 1, 0);
                             ITextureObject tex = Minecraft.getMinecraft().getTextureManager().getTexture(loc);
-                            if (tex != null) {
-                                GlStateManager.pushMatrix();
-                                GlStateManager.enableBlend();
-                                GlStateManager.tryBlendFuncSeparate(770, 771, 1, 0);
-                                GlStateManager.color(1f, 1f, 1f, 0.95f);
+                            if (tex != null && tex.getGlTextureId() > 0) {
+                                GlStateManager.color(1f, 1f, 1f, 1f);
                                 Minecraft.getMinecraft().getTextureManager().bindTexture(loc);
-                                Gui.drawScaledCustomSizeModalRect((int) imgX, (int) imgY, 0f, 0f,
-                                        tex.getGlTextureId() > 0 ? 64 : 1,
-                                        tex.getGlTextureId() > 0 ? 64 : 1,
-                                        cover, cover, 64f, 64f);
-                                GlStateManager.popMatrix();
-                                DrawUtil.resetColor();
+                                Gui.drawModalRectWithCustomSizedTexture(
+                                        (int)imgX, (int)imgY,
+                                        0, 0,
+                                        cover, cover,
+                                        cover, cover
+                                );
                             }
+
+                            GlStateManager.popMatrix();
+                            GlStateManager.disableBlend();
                         }
+                    } else {
+                        Fonts.draw(Fonts.tiny(), "No Cover", imgX + 4, imgY + cover/2 - 4, 0x66FFFFFF);
                     }
 
                     float textX2 = imgX + cover + 8;
