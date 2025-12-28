@@ -14,12 +14,13 @@ import epilogue.module.ModuleManager;
 import epilogue.util.MathUtil;
 import epilogue.value.Value;
 import epilogue.value.ValueHandler;
+import epilogue.config.AccountConfig;
 
 import java.lang.reflect.Field;
 
 public class Epilogue {
     public static String clientName = "Epilogue ";
-    public static String clientVersion = "v1";
+    public static String clientVersion = "v2.3";
 
     public static RotationManager rotationManager;
     public static FloatManager floatManager;
@@ -41,6 +42,9 @@ public class Epilogue {
     }
 
     public void init() {
+        AccountConfig.init();
+        AccountConfig.loadFromFile();
+
         rotationManager = new RotationManager();
         floatManager = new FloatManager();
         blinkManager = new BlinkManager();

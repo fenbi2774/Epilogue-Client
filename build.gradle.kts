@@ -99,7 +99,7 @@ dependencies {
     "downloadLibs"("org.apache.httpcomponents:httpclient:4.5.13")
     "downloadLibs"("com.jsyn:jsyn:20170815")
     "downloadLibs"("com.google.zxing:core:3.5.1")
-
+    "downloadLibs"("org.bouncycastle:bcprov-jdk15on:1.70")
     compileOnly("org.projectlombok:lombok:1.18.32")
     annotationProcessor("org.projectlombok:lombok:1.18.32")
 

@@ -34,10 +34,10 @@ public class OPRotationSystem {
         algorithms.put("Linear", new LinearAlgorithm(10f, 30f, 8f, 25f));
         algorithms.put("SmoothLinear", new SmoothLinearAlgorithm(10f, 30f, 8f, 25f));
         algorithms.put("EIO", new EIOAlgorithm());
-        algorithms.put("Physical-Simulation", new PhysicalSimulationAlgorithm());
-        algorithms.put("Skewed-Unimodal", new SkewedUnimodalAlgorithm());
-        algorithms.put("Simple-NeuralNetwork", new SimpleNeuralNetworkAlgorithm());
-        //algorithms.put("Recorded-Features", new RecordedFeaturesAlgorithm());
+        algorithms.put("PhysicalSimulation", new PhysicalSimulationAlgorithm());
+        algorithms.put("SkewedUnimodal", new SkewedUnimodalAlgorithm());
+        algorithms.put("SimpleNeuralNetwork", new SimpleNeuralNetworkAlgorithm());
+        //algorithms.put("RecordedFeatures", new RecordedFeaturesAlgorithm());
     }
 
     public void conduct(Entity target) {
@@ -68,6 +68,38 @@ public class OPRotationSystem {
         turnSpeedPublic = turnSpeed.getHypot();
         
         applyRotation(turnSpeed);
+    }
+
+    public Rotation compute(Entity target, Rotation currentRotation) {
+        this.target = target;
+        if (target == null || currentRotation == null) {
+            return currentRotation;
+        }
+
+        currRotation = currentRotation;
+        aimRotation = getTargetRotation(target);
+
+        updateRotsData();
+
+        TurnSpeed turnSpeed = calculateTurnSpeed();
+
+        if (simulateFriction) {
+            frictionSimulator.conduct(aimRotation);
+            FrictionSimulator.Friction friction = frictionSimulator.getFriction();
+            turnSpeed.yaw *= friction.yaw;
+            turnSpeed.pitch *= friction.pitch;
+        }
+
+        turnSpeed.yaw = RotationUtils.clamp(turnSpeed.yaw, 0f, 180f);
+        turnSpeed.pitch = RotationUtils.clamp(turnSpeed.pitch, 0f, 180f);
+
+        if (debugTurnSpeed) {
+            System.out.println("TurnSpeed: " + turnSpeed.toString());
+        }
+
+        turnSpeedPublic = turnSpeed.getHypot();
+
+        return getNextRotation(turnSpeed);
     }
 
     private Rotation getTargetRotation(Entity target) {
@@ -150,6 +182,31 @@ public class OPRotationSystem {
         }
         
         mc.thePlayer.rotationPitch = RotationUtils.clamp(mc.thePlayer.rotationPitch, -90f, 90f);
+    }
+
+    private Rotation getNextRotation(TurnSpeed turnSpeed) {
+        Rotation diffRotation = RotationUtils.getDiffRotation(currRotation, aimRotation);
+
+        float yawChange = Math.min(RotationUtils.abs(diffRotation.yaw), turnSpeed.yaw);
+        float pitchChange = Math.min(RotationUtils.abs(diffRotation.pitch), turnSpeed.pitch);
+
+        float nextYaw = currRotation.yaw;
+        float nextPitch = currRotation.pitch;
+
+        if (diffRotation.yaw > 0) {
+            nextYaw += yawChange;
+        } else if (diffRotation.yaw < 0) {
+            nextYaw -= yawChange;
+        }
+
+        if (diffRotation.pitch > 0) {
+            nextPitch += pitchChange;
+        } else if (diffRotation.pitch < 0) {
+            nextPitch -= pitchChange;
+        }
+
+        nextPitch = RotationUtils.clamp(nextPitch, -90f, 90f);
+        return new Rotation(nextYaw, nextPitch);
     }
 
     public void setYawAlgorithm(String algorithm) {
