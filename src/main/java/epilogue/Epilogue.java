@@ -16,8 +16,8 @@ import epilogue.value.Value;
 import epilogue.value.ValueHandler;
 import epilogue.config.AccountConfig;
 import epilogue.config.WidgetConfig;
-import epilogue.hud.widget.WidgetManager;
-import epilogue.hud.widget.impl.HudWidgets;
+import epilogue.ui.widget.WidgetManager;
+import epilogue.ui.widget.impl.HudWidgets;
 
 import java.lang.reflect.Field;
 

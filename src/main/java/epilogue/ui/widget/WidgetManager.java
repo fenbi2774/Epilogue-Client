@@ -1,4 +1,4 @@
-package epilogue.hud.widget;
+package epilogue.ui.widget;
 
 import epilogue.event.EventTarget;
 import epilogue.events.ChatGUIEvent;

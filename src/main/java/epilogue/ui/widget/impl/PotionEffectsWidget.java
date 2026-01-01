@@ -1,8 +1,8 @@
-package epilogue.hud.widget.impl;
+package epilogue.ui.widget.impl;
 
 import epilogue.Epilogue;
-import epilogue.hud.widget.Widget;
-import epilogue.hud.widget.WidgetAlign;
+import epilogue.ui.widget.Widget;
+import epilogue.ui.widget.WidgetAlign;
 import epilogue.module.Module;
 import epilogue.module.modules.render.PotionEffects;
 

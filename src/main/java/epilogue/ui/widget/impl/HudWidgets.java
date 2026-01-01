@@ -1,4 +1,4 @@
-package epilogue.hud.widget.impl;
+package epilogue.ui.widget.impl;
 
 import epilogue.Epilogue;
 

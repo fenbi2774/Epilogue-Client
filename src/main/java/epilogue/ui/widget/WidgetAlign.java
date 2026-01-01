@@ -1,4 +1,4 @@
-package epilogue.hud.widget;
+package epilogue.ui.widget;
 
 public interface WidgetAlign {
     int LEFT = 1;

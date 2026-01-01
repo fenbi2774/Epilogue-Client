@@ -1,12 +1,11 @@
 package epilogue.ui.ncm;
 
+import lombok.Getter;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.texture.ITextureObject;
 import net.minecraft.client.renderer.texture.TextureManager;
-import net.minecraft.util.ResourceLocation;
 
-import epilogue.interfaces.SharedRenderingConstants;
 import epilogue.ncm.OptionsUtil;
 import epilogue.ncm.music.CloudMusic;
 import epilogue.ncm.music.QRCodeGenerator;
@@ -15,17 +14,17 @@ import epilogue.rendering.Rect;
 import epilogue.rendering.animation.Interpolations;
 import epilogue.rendering.rendersystem.RenderSystem;
 
-public class LoginRenderer implements SharedRenderingConstants {
+import static epilogue.rendering.rendersystem.RenderSystem.hexColor;
+import static epilogue.util.render.ColorUtil.reAlpha;
 
+public class LoginRenderer {
+
+    @Getter
     public boolean closing = false;
     Thread loginThread;
     boolean success = false;
     float screeMaskAlpha = 0;
     double scale = 1;
-
-    public boolean avatarLoaded = false;
-    public ResourceLocation tempAvatar = new ResourceLocation("epilogue", "textures/ncm/TempAvatar");
-    public String tempUsername = "";
 
     public LoginRenderer() {
         loginThread = new Thread(() -> {
@@ -39,8 +38,8 @@ public class LoginRenderer implements SharedRenderingConstants {
         loginThread.start();
     }
 
-    public void render(double mouseX, double mouseY, double posX, double posY, double width, double height, float alpha) {
-        screeMaskAlpha = (float) (Interpolations.interpBezier(screeMaskAlpha * 255, this.isClosing() ? 0 : 120, 0.3f) * RenderSystem.DIVIDE_BY_255);
+    public void render(double posX, double posY, double width, double height, float alpha) {
+        screeMaskAlpha = Interpolations.interpBezier(screeMaskAlpha * 255, this.isClosing() ? 0 : 120, 0.3f) * RenderSystem.DIVIDE_BY_255;
 
         GlStateManager.pushMatrix();
         scale = 1;
@@ -53,9 +52,6 @@ public class LoginRenderer implements SharedRenderingConstants {
 
         String str = "Scan QR Code to login";
         epilogue.ui.clickgui.menu.Fonts.draw(epilogue.ui.clickgui.menu.Fonts.small(), str, (float) (posX + width / 2.0 - epilogue.ui.clickgui.menu.Fonts.width(epilogue.ui.clickgui.menu.Fonts.small(), str) / 2.0), (float) startY, textColor);
-
-        double qrX = posX + width / 2.0 - qWidth / 2.0;
-        double qrY = posY + height / 6.0 * 4.0 - qHeight / 2.0;
 
         TextureManager textureManager = Minecraft.getMinecraft().getTextureManager();
 
@@ -72,12 +68,7 @@ public class LoginRenderer implements SharedRenderingConstants {
 
         GlStateManager.popMatrix();
     }
-
     public boolean canClose() {
         return this.isClosing() && this.screeMaskAlpha <= 0.05 && success;
-    }
-
-    public boolean isClosing() {
-        return closing;
     }
 }

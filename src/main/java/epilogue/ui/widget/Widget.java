@@ -1,4 +1,4 @@
-package epilogue.hud.widget;
+package epilogue.ui.widget;
 
 import epilogue.util.render.ColorUtil;
 import epilogue.util.render.RenderUtil;

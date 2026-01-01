@@ -5,7 +5,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import epilogue.Epilogue;
-import epilogue.hud.widget.Widget;
+import epilogue.ui.widget.Widget;
 
 import java.io.BufferedReader;
 import java.io.File;

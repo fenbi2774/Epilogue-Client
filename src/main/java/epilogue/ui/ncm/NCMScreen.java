@@ -9,7 +9,6 @@ import epilogue.ncm.music.dto.PlayList;
 import epilogue.ui.clickgui.menu.Fonts;
 import epilogue.ui.clickgui.menu.render.DrawUtil;
 import epilogue.rendering.StencilClipManager;
-import epilogue.util.render.ColorUtil;
 import epilogue.util.render.RenderUtil;
 import epilogue.util.render.RoundedUtil;
 import net.minecraft.client.Minecraft;
@@ -749,7 +748,7 @@ public class NCMScreen extends BaseScreen {
 
         if (!loggedIn) {
             if (loginRenderer == null) loginRenderer = new LoginRenderer();
-            loginRenderer.render(mouseX, mouseY, x, y, w, h, 1.0f);
+            loginRenderer.render(x, y, w, h, 1.0f);
             if (loginRenderer.canClose() && !OptionsUtil.getCookie().isEmpty()) {
                 loginRenderer = null;
                 NCM_ASYNC.execute(() -> {
