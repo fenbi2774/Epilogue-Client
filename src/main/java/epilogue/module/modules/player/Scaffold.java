@@ -92,7 +92,7 @@ public class Scaffold extends Module {
     public final BooleanValue multiplace = new BooleanValue("0 Tick Place", false);
     public final BooleanValue safeWalk = new BooleanValue("Safe Walk", false);
     public final BooleanValue safe = new BooleanValue("Safe", false, () -> this.tower.getValue() == 3);
-    public final IntValue safeStuckDelayTicksValue = new IntValue("Safe Delay Ticks", 2, 0, 10, () -> this.tower.getValue() == 3 && this.safe.getValue());
+    public final IntValue safeStuckDelayTicksValue = new IntValue("Safe Delay Ticks", 1, 1, 3, () -> this.tower.getValue() == 3 && this.safe.getValue());
     public final BooleanValue swing = new BooleanValue("Swing", false);
     public final BooleanValue itemSpoof = new BooleanValue("Item Spoof", true);
     public final BooleanValue blockCounter = new BooleanValue("Block Counter", false);
