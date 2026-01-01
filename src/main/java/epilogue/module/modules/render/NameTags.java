@@ -176,6 +176,11 @@ public class NameTags extends Module {
             String namePlain = EnumChatFormatting.getTextWithoutFormattingCodes(teamName);
             if (StringUtils.isBlank(namePlain)) continue;
 
+            String nameFormatted = teamName;
+            if (nameFormatted.indexOf('&') >= 0) {
+                nameFormatted = ChatColors.formatColor(nameFormatted);
+            }
+
             double distance = mc.getRenderViewEntity().getDistanceToEntity(entity);
             EntityPlayer player = (EntityPlayer) entity;
 
@@ -219,7 +224,7 @@ public class NameTags extends Module {
             float hpW = FontRenderer.getStringWidth(hpText) + 2.0f + iconSize;
             float itemsW = 5.0f * itemSize + 4.0f * 1.0f;
             float contentW = distW + 6.0f + itemsW + 6.0f + hpW;
-            float nameW = FontRenderer.getStringWidth(namePlain);
+            float nameW = mc.fontRendererObj.getStringWidth(nameFormatted);
             float bgW = Math.max(baseW, Math.max(contentW + padX * 2.0f, nameW + padX * 2.0f));
             float bgH = baseH;
             float tagScale = this.scale.getValue();
@@ -260,7 +265,7 @@ public class NameTags extends Module {
             float sHpW = FontRenderer.getStringWidth(hpText) * tagScale + 2.0f * tagScale + sIcon;
             float sItemsW = 5.0f * sItem + 4.0f * (1.0f * tagScale);
             float sContentW = sDistW + 6.0f * tagScale + sItemsW + 6.0f * tagScale + sHpW;
-            float sNameW = FontRenderer.getStringWidth(namePlain) * tagScale;
+            float sNameW = mc.fontRendererObj.getStringWidth(nameFormatted) * tagScale;
 
             float row1Y = top + sPadY;
             float row2Y = bottom - sPadY - mc.fontRendererObj.FONT_HEIGHT * tagScale;
@@ -303,7 +308,7 @@ public class NameTags extends Module {
             GlStateManager.pushMatrix();
             GlStateManager.translate(screenX - sNameW / 2.0f, row2Y, 0.0f);
             GlStateManager.scale(tagScale, tagScale, 1.0f);
-            FontRenderer.drawString(namePlain, 0.0f, 0.0f, 0xFFFFFFFF);
+            mc.fontRendererObj.drawString(nameFormatted, 0.0f, 0.0f, 0xFFFFFFFF, false);
             GlStateManager.popMatrix();
 
             GlStateManager.enableDepth();

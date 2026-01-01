@@ -25,7 +25,7 @@ public class PostProcessing extends Module {
     public final BooleanValue arrayListBloomFromInterface = new BooleanValue("ArrayList Bloom From Interface", true);
     public final BooleanValue newDynamicIslandBloomFromItSelf = new BooleanValue("Flat DynamicIsland Bloom From It Self", false);
     public final IntValue bloomIterations = new IntValue("Bloom Iterations", 5, 1, 10);
-    public final IntValue bloomOffset = new IntValue("Bloom Offset", 3, 1, 10);
+    public final IntValue bloomOffset = new IntValue("Bloom Offset", 3, 0, 10);
 
     public PostProcessing() {
         super("PostProcessing", true);

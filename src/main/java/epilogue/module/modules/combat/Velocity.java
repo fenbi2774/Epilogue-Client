@@ -2,24 +2,16 @@ package epilogue.module.modules.combat;
 
 import com.google.common.base.CaseFormat;
 import epilogue.Epilogue;
-import epilogue.enums.DelayModules;
-import epilogue.event.EventManager;
-import epilogue.event.EventTarget;
-import epilogue.event.types.EventType;
-import epilogue.events.*;
-import epilogue.management.RotationState;
-import epilogue.module.Module;
-import epilogue.util.ChatUtil;
-import epilogue.util.MoveUtil;
 import epilogue.value.values.*;
 import net.minecraft.client.Minecraft;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.item.ItemStack;
+import net.minecraft.network.Packet;
+import net.minecraft.network.play.INetHandlerPlayClient;
 import net.minecraft.network.play.client.C02PacketUseEntity;
+import net.minecraft.network.play.client.C0APacketAnimation;
 import net.minecraft.network.play.client.C07PacketPlayerDigging;
 import net.minecraft.network.play.client.C08PacketPlayerBlockPlacement;
-import net.minecraft.network.play.client.C0APacketAnimation;
 import net.minecraft.network.play.server.S12PacketEntityVelocity;
 import net.minecraft.network.play.server.S19PacketEntityStatus;
 import net.minecraft.network.play.server.S27PacketExplosion;
@@ -27,6 +19,15 @@ import net.minecraft.util.AxisAlignedBB;
 import net.minecraft.util.BlockPos;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.world.World;
+import epilogue.enums.DelayModules;
+import epilogue.util.MoveUtil;
+import epilogue.util.ChatUtil;
+import epilogue.event.EventTarget;
+import epilogue.event.types.EventType;
+import epilogue.events.*;
+import epilogue.management.RotationState;
+import epilogue.module.Module;
+import net.minecraft.item.ItemStack;
 
 public class Velocity extends Module {
     private static final Minecraft mc = Minecraft.getMinecraft();
@@ -46,16 +47,18 @@ public class Velocity extends Module {
     private boolean delayedVelocityActive = false;
     private int attackReduceTicksLeft = 0;
     private boolean attackReduceApplied = false;
+
     private boolean mixReduceHasReceivedVelocity = false;
     private boolean mixReduceIsFallDamage = false;
     private Entity mixReduceTarget = null;
-    private int mixReduceAttackWindowTicks = 0;
-    private boolean mixReduceIsFromTargetAttack = false;
+    private boolean mixReduceNoAttack = true;
+
     private boolean mixReduceHadBlock = false;
     private boolean mixReduceRestoreBlock = false;
     private boolean mixReduceAuraAttackBlockedBefore = false;
     private boolean mixReduceAuraSwingBlockedBefore = false;
     private int mixReduceSuppressBlockTicks = 0;
+
     private boolean mixReduceDbgRayOk = true;
     private boolean mixReduceDbgFall = false;
     private String mixReduceDbgTarget = "-";
@@ -66,10 +69,6 @@ public class Velocity extends Module {
     private double mixReduceDbgBeforeZ = 0.0;
     private double mixReduceDbgAfterX = 0.0;
     private double mixReduceDbgAfterZ = 0.0;
-    private boolean mixTestReducePending = false;
-    private boolean mixTestReduceHitOnGround = false;
-    private boolean mixTestReduceRestoreSprintNextTick = false;
-    private boolean mixTestReduceWasSprinting = false;
 
     private EntityPlayer getNearestPlayerTarget() {
         if (mc.theWorld == null || mc.thePlayer == null) {
@@ -78,13 +77,10 @@ public class Velocity extends Module {
         EntityPlayer best = null;
         double bestDist = Double.MAX_VALUE;
         for (Object o : mc.theWorld.playerEntities) {
-            if (!(o instanceof EntityPlayer)) {
-                continue;
-            }
+            if (!(o instanceof EntityPlayer)) continue;
             EntityPlayer p = (EntityPlayer) o;
-            if (p == mc.thePlayer || p.isDead) {
-                continue;
-            }
+            if (p == mc.thePlayer) continue;
+            if (p.isDead) continue;
             double d = mc.thePlayer.getDistanceToEntity(p);
             if (d < bestDist) {
                 bestDist = d;
@@ -144,8 +140,6 @@ public class Velocity extends Module {
     public final FloatValue mixReduceRange = new FloatValue("Range", 3.0F, 0.0F, 6.0F, () -> this.mode.getValue() == 2 && this.mixReduce.getValue() && this.mixReduceRaycast.getValue());
     public final BooleanValue mixReduceDebug = new BooleanValue("Reduce Debug", true, () -> this.mode.getValue() == 2 && this.mixReduce.getValue());
     public final IntValue mixReduceUnBlockTicks = new IntValue("UnBlockTicks", 2, 0, 10, () -> this.mode.getValue() == 2 && this.mixReduce.getValue());
-    //reduce(only attack)
-    public final BooleanValue mixTestReduce = new BooleanValue("Test Reduce", false, () -> this.mode.getValue() == 2);
 
     public Velocity() {
         super("Velocity", false);
@@ -164,6 +158,17 @@ public class Velocity extends Module {
             this.targetRotation = null;
             this.airRotateActive = true;
         }
+    }
+
+    private boolean isAuraTargetHitByRay() {
+        Aura aura = (Aura) Epilogue.moduleManager.modules.get(Aura.class);
+        if (aura == null || !aura.isEnabled()) {
+            return true;
+        }
+        if (aura.target == null || aura.target.getBox() == null) {
+            return true;
+        }
+        return epilogue.util.RotationUtil.rayTrace(aura.target.getBox(), mc.thePlayer.rotationYaw, mc.thePlayer.rotationPitch, aura.attackRange.getValue()) != null;
     }
 
     private void updateRotateGates() {
@@ -191,7 +196,7 @@ public class Velocity extends Module {
 
     private void queueDelayedVelocity(PacketEvent event, S12PacketEntityVelocity packet, int ticks) {
         Epilogue.delayManager.setDelayState(true, DelayModules.VELOCITY);
-        Epilogue.delayManager.delayedPacket.offer(packet);
+        Epilogue.delayManager.delayedPacket.offer((Packet<INetHandlerPlayClient>) (Packet<?>) packet);
         event.setCancelled(true);
         this.startDelayedVelocity(ticks);
     }
@@ -236,6 +241,8 @@ public class Velocity extends Module {
         if (aura == null || !aura.isEnabled()) {
             return;
         }
+        if (this.attackReduceTicksLeft <= 0) {
+        }
         this.attackReduceTicksLeft = 1;
         Aura.attackBlocked = true;
         Aura.swingBlocked = true;
@@ -249,14 +256,6 @@ public class Velocity extends Module {
             this.allowNext = true;
             this.endRotate();
             return;
-        }
-
-        if (this.isMix() && this.mixTestReduce.getValue() && event.getY() > 0.0) {
-            boolean attacking = Epilogue.playerStateManager != null && Epilogue.playerStateManager.attacking;
-            if (attacking) {
-                this.mixTestReducePending = true;
-                this.mixTestReduceHitOnGround = mc.thePlayer.onGround;
-            }
         }
 
         if (this.isMix() && this.mixHitSelect.getValue() && event.getY() > 0.0) {
@@ -371,13 +370,9 @@ public class Velocity extends Module {
                     double velocityY = packet.getMotionY() / 8000.0;
                     double velocityZ = packet.getMotionZ() / 8000.0;
                     this.mixReduceIsFallDamage = velocityX == 0.0 && velocityZ == 0.0 && velocityY < 0.0;
-                    this.mixReduceIsFromTargetAttack = this.mixReduceAttackWindowTicks > 0
-                            && Epilogue.playerStateManager != null
-                            && Epilogue.playerStateManager.attacking
-                            && this.mixReduceTarget != null;
+                    this.mixReduceHasReceivedVelocity = true;
 
-                    this.mixReduceHasReceivedVelocity = !this.mixReduceIsFallDamage && this.mixReduceIsFromTargetAttack;
-
+                    this.mixReduceDbgRayOk = true;
                     this.mixReduceDbgFall = this.mixReduceIsFallDamage;
                     this.mixReduceDbgTarget = this.mixReduceTarget != null ? this.mixReduceTarget.getName() : "-";
                     this.mixReduceDbgDidAttack = false;
@@ -407,7 +402,7 @@ public class Velocity extends Module {
 
             if (this.mode.getValue() == 1 && this.airDelay.getValue() && !mc.thePlayer.onGround) {
                 Epilogue.delayManager.setDelayState(true, DelayModules.VELOCITY);
-                Epilogue.delayManager.delayedPacket.offer(packet);
+                Epilogue.delayManager.delayedPacket.offer((Packet<INetHandlerPlayClient>) (Packet<?>) packet);
                 event.setCancelled(true);
                 this.startDelayedVelocity(airDelayTicks.getValue());
                 return;
@@ -444,38 +439,11 @@ public class Velocity extends Module {
             return;
         }
 
-        if (!this.isMix()) {
-            return;
-        }
-
-        if (event.getType() == EventType.PRE) {
-
-            if (this.mixReduceAttackWindowTicks > 0) {
-                this.mixReduceAttackWindowTicks--;
-            }
-            if (Epilogue.playerStateManager != null && Epilogue.playerStateManager.attacking) {
-                this.mixReduceAttackWindowTicks = 4;
-            }
-
-            if (this.isMix() && this.mixTestReduce.getValue() && this.mixTestReducePending && mc.thePlayer.hurtTime == 9) {
-                this.mixTestReduceWasSprinting = mc.thePlayer.isSprinting();
-                if (this.mixTestReduceHitOnGround) {
-                    mc.thePlayer.jump();
+        if (event.getType() == EventType.POST) {
+            if (this.mixReduceRestoreBlock) {
+                if (this.mixReduceSuppressBlockTicks > 0) {
+                    return;
                 }
-                mc.thePlayer.motionX *= 0.6D;
-                mc.thePlayer.motionZ *= 0.6D;
-                mc.thePlayer.setSprinting(false);
-                this.mixTestReduceRestoreSprintNextTick = true;
-                this.mixTestReducePending = false;
-            }
-
-            if (this.mixReduceSuppressBlockTicks > 0) {
-                this.mixReduceSuppressBlockTicks--;
-                Aura.attackBlocked = true;
-                Aura.swingBlocked = true;
-                mc.getNetHandler().addToSendQueue(new C07PacketPlayerDigging(C07PacketPlayerDigging.Action.RELEASE_USE_ITEM, BlockPos.ORIGIN, EnumFacing.DOWN));
-                mc.thePlayer.stopUsingItem();
-            } else {
                 if (!this.mixReduceAuraAttackBlockedBefore) {
                     Aura.attackBlocked = false;
                 }
@@ -483,65 +451,122 @@ public class Velocity extends Module {
                     Aura.swingBlocked = false;
                 }
 
-                if (this.mixReduce.getValue() && this.mixReduceHasReceivedVelocity) {
-                    if (this.mixReduceIsFallDamage || !this.mixReduceIsFromTargetAttack) {
-                        this.mixReduceHasReceivedVelocity = false;
-                    } else if (mc.thePlayer.isSprinting() && MoveUtil.isForwardPressed()) {
-                        Entity t = this.mixReduceTarget;
-
-                        if (t == null) {
-                            this.mixReduceHasReceivedVelocity = false;
-                        } else if (t instanceof EntityPlayer) {
-
-                            Aura aura = (Aura) Epilogue.moduleManager.modules.get(Aura.class);
-                            if (aura != null && aura.isEnabled()) {
-                                this.mixReduceHadBlock = aura.isPlayerBlocking() || aura.isBlocking() || aura.shouldAutoBlock();
-                            } else {
-                                this.mixReduceHadBlock = mc.thePlayer.isUsingItem();
-                            }
-                            this.mixReduceAuraAttackBlockedBefore = Aura.attackBlocked;
-                            this.mixReduceAuraSwingBlockedBefore = Aura.swingBlocked;
-
-                            Aura.attackBlocked = true;
-                            Aura.swingBlocked = true;
-
-                            if (this.mixReduceHadBlock) {
-                                mc.getNetHandler().addToSendQueue(new C07PacketPlayerDigging(C07PacketPlayerDigging.Action.RELEASE_USE_ITEM, BlockPos.ORIGIN, EnumFacing.DOWN));
-                                mc.thePlayer.stopUsingItem();
-                            }
-
-                            EventManager.call(new AttackEvent(t));
-
-                            mc.getNetHandler().addToSendQueue(new C0APacketAnimation());
-                            mc.getNetHandler().addToSendQueue(new C02PacketUseEntity(t, C02PacketUseEntity.Action.ATTACK));
-
-                            this.mixReduceRestoreBlock = true;
-                            if (this.mixReduceHadBlock) {
-                                int base = Math.max(0, this.mixReduceUnBlockTicks.getValue());
-                                int extra = (aura != null && aura.isEnabled() && aura.shouldAutoBlock()) ? 1 : 0;
-                                this.mixReduceSuppressBlockTicks = base + extra;
-                            } else {
-                                this.mixReduceSuppressBlockTicks = 0;
-                            }
-
-                            this.mixReduceDbgDidAttack = true;
-                            this.mixReduceDbgHadBlock = this.mixReduceHadBlock;
-                            this.mixReduceDbgPlannedUnblockTicks = this.mixReduceSuppressBlockTicks;
-
-                            double beforeX = mc.thePlayer.motionX;
-                            double beforeZ = mc.thePlayer.motionZ;
-                            mc.thePlayer.motionX *= 0.6D;
-                            mc.thePlayer.motionZ *= 0.6D;
-                            mc.thePlayer.setSprinting(false);
-
-                            this.mixReduceDbgBeforeX = beforeX;
-                            this.mixReduceDbgBeforeZ = beforeZ;
-                            this.mixReduceDbgAfterX = mc.thePlayer.motionX;
-                            this.mixReduceDbgAfterZ = mc.thePlayer.motionZ;
-
-                            this.mixReduceHasReceivedVelocity = false;
-                        }
+                if (this.mixReduceHadBlock) {
+                    ItemStack held = mc.thePlayer.getHeldItem();
+                    if (held != null) {
+                        mc.getNetHandler().addToSendQueue(new C08PacketPlayerBlockPlacement(held));
+                        mc.thePlayer.setItemInUse(held, held.getMaxItemUseDuration());
                     }
+                }
+
+                if (this.mixReduceDebug.getValue()) {
+                    String line = "&7[Velocity]&f Reduce "
+                            + "&8{"
+                            + "Raycast = " + (this.mixReduceDbgRayOk ? "Okay" : "Miss")
+                            + ",Fall = " + this.mixReduceDbgFall
+                            + ",Attack = " + this.mixReduceDbgDidAttack
+                            + ",Block = " + this.mixReduceDbgHadBlock
+                            + ",UnBlockTicks = " + this.mixReduceDbgPlannedUnblockTicks
+                            + "}&f "
+                            + "Target = &b" + this.mixReduceDbgTarget + "&f "
+                            + "MotionX = " + this.mixReduceDbgBeforeX + "->" + this.mixReduceDbgAfterX + " "
+                            + "MotionY = " + this.mixReduceDbgBeforeZ + "->" + this.mixReduceDbgAfterZ;
+                    ChatUtil.sendFormatted(line);
+                }
+
+                this.mixReduceHadBlock = false;
+                this.mixReduceRestoreBlock = false;
+            }
+
+            if (this.attackReduceTicksLeft > 0) {
+                this.attackReduceTicksLeft--;
+                if (this.attackReduceTicksLeft <= 0) {
+                    if (this.attackReduceApplied) {
+                        Aura.attackBlocked = false;
+
+                        Aura.swingBlocked = false;
+                    }
+                    this.attackReduceApplied = false;
+                }
+            }
+        }
+
+        if (!this.isMix()) {
+            return;
+        }
+
+        if (event.getType() == EventType.PRE) {
+            if (this.mixReduceSuppressBlockTicks > 0) {
+                this.mixReduceSuppressBlockTicks--;
+                Aura.attackBlocked = true;
+                Aura.swingBlocked = true;
+                mc.getNetHandler().addToSendQueue(new C07PacketPlayerDigging(C07PacketPlayerDigging.Action.RELEASE_USE_ITEM, BlockPos.ORIGIN, EnumFacing.DOWN));
+                mc.thePlayer.stopUsingItem();
+            }
+
+            if (this.mixReduce.getValue() && this.mixReduceHasReceivedVelocity) {
+                if (!this.mixReduceIsFallDamage && mc.thePlayer.isSprinting() && MoveUtil.isForwardPressed()) {
+                    Entity t = this.mixReduceTarget;
+
+                    if (t == null) {
+                        this.mixReduceHasReceivedVelocity = false;
+                        return;
+                    }
+                    if (t instanceof EntityPlayer) {
+                        this.mixReduceNoAttack = false;
+
+                        Aura aura = (Aura) Epilogue.moduleManager.modules.get(Aura.class);
+                        if (aura != null && aura.isEnabled()) {
+                            this.mixReduceHadBlock = aura.isPlayerBlocking() || aura.isBlocking() || aura.shouldAutoBlock();
+                        } else {
+                            this.mixReduceHadBlock = mc.thePlayer.isUsingItem();
+                        }
+                        this.mixReduceAuraAttackBlockedBefore = Aura.attackBlocked;
+                        this.mixReduceAuraSwingBlockedBefore = Aura.swingBlocked;
+
+                        Aura.attackBlocked = true;
+                        Aura.swingBlocked = true;
+
+                        if (this.mixReduceHadBlock) {
+                            mc.getNetHandler().addToSendQueue(new C07PacketPlayerDigging(C07PacketPlayerDigging.Action.RELEASE_USE_ITEM, BlockPos.ORIGIN, EnumFacing.DOWN));
+                            mc.thePlayer.stopUsingItem();
+                        }
+
+                        Epilogue.eventManager.call(new AttackEvent(t));
+
+                        mc.getNetHandler().addToSendQueue(new C0APacketAnimation());
+                        mc.getNetHandler().addToSendQueue(new C02PacketUseEntity(t, C02PacketUseEntity.Action.ATTACK));
+
+                        this.mixReduceRestoreBlock = true;
+                        if (this.mixReduceHadBlock) {
+                            int base = Math.max(0, this.mixReduceUnBlockTicks.getValue());
+                            int extra = (aura != null && aura.isEnabled() && aura.shouldAutoBlock()) ? 1 : 0;
+                            this.mixReduceSuppressBlockTicks = base + extra;
+                        } else {
+                            this.mixReduceSuppressBlockTicks = 0;
+                        }
+
+                        this.mixReduceDbgDidAttack = true;
+                        this.mixReduceDbgHadBlock = this.mixReduceHadBlock;
+                        this.mixReduceDbgPlannedUnblockTicks = this.mixReduceSuppressBlockTicks;
+
+                        double beforeX = mc.thePlayer.motionX;
+                        double beforeZ = mc.thePlayer.motionZ;
+                        mc.thePlayer.motionX *= 0.6D;
+                        mc.thePlayer.motionZ *= 0.6D;
+                        mc.thePlayer.setSprinting(false);
+
+                        this.mixReduceDbgBeforeX = beforeX;
+                        this.mixReduceDbgBeforeZ = beforeZ;
+                        this.mixReduceDbgAfterX = mc.thePlayer.motionX;
+                        this.mixReduceDbgAfterZ = mc.thePlayer.motionZ;
+
+                        this.mixReduceHasReceivedVelocity = false;
+                    }
+                }
+
+                if (this.mixReduceHasReceivedVelocity) {
+                    this.mixReduceNoAttack = true;
                 }
             }
 
@@ -594,59 +619,6 @@ public class Velocity extends Module {
                     this.delayedVelocityActive = false;
                 }
             }
-
-            if (this.mixReduceRestoreBlock && this.mixReduceSuppressBlockTicks <= 0) {
-                if (!this.mixReduceAuraAttackBlockedBefore) {
-                    Aura.attackBlocked = false;
-                }
-                if (!this.mixReduceAuraSwingBlockedBefore) {
-                    Aura.swingBlocked = false;
-                }
-
-                if (this.mixReduceHadBlock) {
-                    ItemStack held = mc.thePlayer.getHeldItem();
-                    if (held != null) {
-                        mc.getNetHandler().addToSendQueue(new C08PacketPlayerBlockPlacement(held));
-                        mc.thePlayer.setItemInUse(held, held.getMaxItemUseDuration());
-                    }
-                }
-
-                if (this.mixReduceDebug.getValue()) {
-                    String line = "&7[Velocity]&f Reduce "
-                            + "&8{"
-                            + "Raycast = " + (this.mixReduceDbgRayOk ? "Okay" : "Miss")
-                            + ",Fall = " + this.mixReduceDbgFall
-                            + ",Attack = " + this.mixReduceDbgDidAttack
-                            + ",Block = " + this.mixReduceDbgHadBlock
-                            + ",UnBlockTicks = " + this.mixReduceDbgPlannedUnblockTicks
-                            + "}&f "
-                            + "Target = &b" + this.mixReduceDbgTarget + "&f "
-                            + "&o&fMotionX = &e" + this.mixReduceDbgBeforeX + "&7->&e" + this.mixReduceDbgAfterX + " "
-                            + "&o&fMotionZ = &e " + this.mixReduceDbgBeforeZ + "&7->&e" + this.mixReduceDbgAfterZ;
-                    ChatUtil.sendFormatted(line);
-                }
-
-                this.mixReduceHadBlock = false;
-                this.mixReduceRestoreBlock = false;
-            }
-
-            if (this.attackReduceTicksLeft > 0) {
-                this.attackReduceTicksLeft--;
-                if (this.attackReduceTicksLeft <= 0) {
-                    if (this.attackReduceApplied) {
-                        Aura.attackBlocked = false;
-                        Aura.swingBlocked = false;
-                    }
-                    this.attackReduceApplied = false;
-                }
-            }
-
-            if (this.mixTestReduceRestoreSprintNextTick) {
-                if (this.mixTestReduceWasSprinting) {
-                    mc.thePlayer.setSprinting(true);
-                }
-                this.mixTestReduceRestoreSprintNextTick = false;
-            }
         }
     }
 
@@ -697,13 +669,9 @@ public class Velocity extends Module {
         this.attackReduceTicksLeft = 0;
         this.attackReduceApplied = false;
         this.mixReduceHadBlock = false;
+        this.mixReduceRestoreBlock = false;
         this.mixReduceAuraAttackBlockedBefore = false;
         this.mixReduceAuraSwingBlockedBefore = false;
-        this.mixReduceAttackWindowTicks = 0;
-        this.mixReduceIsFromTargetAttack = false;
-        this.mixTestReducePending = false;
-        this.mixTestReduceHitOnGround = false;
-        this.mixTestReduceRestoreSprintNextTick = false;
         this.endRotate();
     }
 
@@ -730,9 +698,6 @@ public class Velocity extends Module {
         }
         this.attackReduceTicksLeft = 0;
         this.attackReduceApplied = false;
-        this.mixTestReducePending = false;
-        this.mixTestReduceHitOnGround = false;
-        this.mixTestReduceRestoreSprintNextTick = false;
         this.endRotate();
         if (Epilogue.delayManager.getDelayModule() == DelayModules.VELOCITY) {
             Epilogue.delayManager.setDelayState(false, DelayModules.VELOCITY);
