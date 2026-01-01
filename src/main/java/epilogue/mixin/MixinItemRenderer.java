@@ -24,22 +24,20 @@ public abstract class MixinItemRenderer {
     private Minecraft mc;
 
     @Shadow
-    private ItemStack itemToRender;
-
-    @Shadow
-    private float equippedProgress;
-
-    @Shadow
-    private float prevEquippedProgress;
-
-    @Shadow
     protected abstract void doBlockTransformations();
 
     private float delay = 0;
     private long lastUpdateTime = System.currentTimeMillis();
 
-    @Inject(method = "renderItemInFirstPerson", at = @At("HEAD"))
-    private void onRenderItemInFirstPersonHead(float partialTicks, CallbackInfo ci) {
+    @Inject(
+            method = "renderItemInFirstPerson",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/client/renderer/ItemRenderer;transformFirstPersonItem(FF)V",
+                    shift = At.Shift.AFTER
+            )
+    )
+    private void onScaleFirstPersonItem(float partialTicks, CallbackInfo ci) {
         Animations animations = Animations.getInstance();
         if (animations == null || !animations.isEnabled()) return;
 
