@@ -166,16 +166,6 @@ public abstract class MixinItemRenderer {
         }
     }
 
-    private void applySwingAnimation(float swingProgress) {
-        doBlockTransformations();
-    }
-
-    private void applyOldAnimation(float swingProgress) {
-        GL11.glTranslated(0.08, -0.14, -0.05);
-        GlStateManager.translate(-0.35F, 0.2F, 0.0F);
-        doBlockTransformations();
-    }
-
     private void applyPushAnimation(float swingProgress) {
         float var9 = MathHelper.sin(MathHelper.sqrt_float(swingProgress) * (float)Math.PI);
         GlStateManager.rotate(-var9 * 40.0F / 2.0F, var9 / 2.0F, 1.0F, 4.0F);
@@ -231,19 +221,6 @@ public abstract class MixinItemRenderer {
         float var9 = MathHelper.sin(MathHelper.sqrt_float(swingProgress) * (float)Math.PI);
         GL11.glRotated(-var9 * -30.0F / 2.0F, var9 / 2.0F, 1.0F, 4.0F);
         GL11.glRotated(-var9 * 7.5F, 1.0F, var9 / 3.0F, -0.0F);
-    }
-
-    private void applyStellaAnimation(float swingProgress) {
-        GlStateManager.translate(-0.5F, 0.3F, -0.2F);
-        GlStateManager.rotate(32, 0, 1, 0);
-        GlStateManager.rotate(-70, 1, 0, 0);
-        GlStateManager.rotate(40, 0, 1, 0);
-        doBlockTransformations();
-    }
-
-    private void applySmallAnimation(float swingProgress) {
-        GL11.glTranslated(-0.01, 0.03, -0.24);
-        doBlockTransformations();
     }
 
     private void applyEditAnimation(float swingProgress) {
@@ -306,13 +283,6 @@ public abstract class MixinItemRenderer {
         GlStateManager.rotate(-var * 80.0f, 1.0f, 0.0f, 0.0f);
     }
 
-    private void applyWinterAnimation(float swingProgress) {
-        GL11.glTranslated(0.0, -0.16, 0.0);
-        GL11.glTranslatef(-0.35F, 0.1F, 0.0F);
-        GL11.glTranslatef(-0.05F, -0.1F, 0.1F);
-        doBlockTransformations();
-    }
-
     private void applyYamatoAnimation(float swingProgress) {
         float var9 = MathHelper.sin(MathHelper.sqrt_float(swingProgress) * (float)Math.PI);
         GL11.glRotatef(-var9 * 200F / 2.0F, -9.0F, 5.0F, 9.0F);
@@ -339,12 +309,6 @@ public abstract class MixinItemRenderer {
         GlStateManager.rotate(f1 * -10.0F, 1.0F, 1.0F, 1.0F);
         GlStateManager.rotate(f1 * -10.0F, 1.0F, 1.0F, 1.0F);
         GlStateManager.scale(0.4F, 0.4F, 0.4F);
-        doBlockTransformations();
-    }
-
-    private void applyReverseAnimation(float swingProgress) {
-        GL11.glTranslated(0.0, 0.1, -0.12);
-        GL11.glTranslated(0.08D, -0.1D, -0.3D);
         doBlockTransformations();
     }
 
@@ -416,12 +380,6 @@ public abstract class MixinItemRenderer {
         GlStateManager.translate(-0.36f, 0.25f, -0.06f);
         GlStateManager.rotate(-var91 * 35.0f, -8.0f, -0.0f, 9.0f);
         GlStateManager.rotate(-var91 * 70.0f, 1.0f, 0.4f, -0.0f);
-    }
-
-    private void applyJigsawAnimation(float swingProgress) {
-        GL11.glTranslated(0.0, -0.18, -0.1);
-        GlStateManager.translate(-0.5D, 0.0D, 0.0D);
-        doBlockTransformations();
     }
 
     private void applyTap1Animation(float swingProgress) {
