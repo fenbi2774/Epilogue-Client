@@ -38,6 +38,17 @@ public abstract class MixinItemRenderer {
     private float delay = 0;
     private long lastUpdateTime = System.currentTimeMillis();
 
+    @Inject(method = "renderItemInFirstPerson", at = @At("HEAD"))
+    private void onRenderItemInFirstPersonHead(float partialTicks, CallbackInfo ci) {
+        Animations animations = Animations.getInstance();
+        if (animations == null || !animations.isEnabled()) return;
+
+        float itemScale = animations.scale.getValue() + 1.0F;
+        if (itemScale != 1.0F) {
+            GlStateManager.scale(itemScale, itemScale, itemScale);
+        }
+    }
+
     @Inject(method = "renderItemInFirstPerson", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/ItemRenderer;doBlockTransformations()V"))
     private void onRenderBlockingItem(float partialTicks, CallbackInfo ci) {
         Animations animations = Animations.getInstance();
@@ -45,11 +56,6 @@ public abstract class MixinItemRenderer {
 
         EntityPlayerSP player = mc.thePlayer;
         if (player == null) return;
-
-        float itemScale = animations.scale.getValue() + 1.0F;
-        if (itemScale != 1.0F) {
-            GlStateManager.scale(itemScale, itemScale, itemScale);
-        }
 
         if (!player.isBlocking()) return;
 
