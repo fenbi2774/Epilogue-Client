@@ -24,40 +24,23 @@ public class Scoreboard extends Module {
     private final Minecraft mc = Minecraft.getMinecraft();
     
     public final BooleanValue hide = new BooleanValue("Hide", false);
-    public final IntValue offsetX = new IntValue("Offset X", 0, -1000, 200);
-    public final IntValue offsetY = new IntValue("Offset Y", 0, -600, 200);
     
     public static Scoreboard instance;
-    private boolean isRenderingCustom = false;
+    private float lastWidth;
+    private float lastHeight;
     
     public Scoreboard() {
         super("Scoreboard", false);
         instance = this;
     }
     
-    @EventTarget
-    public void onRender2D(Render2DEvent event) {
-        if (!this.isEnabled()) return;
-        
-        if (hide.getValue()) {
-            return;
-        }
-        
-        if (offsetX.getValue() != 0 || offsetY.getValue() != 0) {
-            if (!isRenderingCustom) {
-                isRenderingCustom = true;
-                renderCustomScoreboard();
-                isRenderingCustom = false;
-            }
-        }
-    }
-    
     public boolean shouldHideOriginalScoreboard() {
-        return this.isEnabled() && (hide.getValue() || (offsetX.getValue() != 0 || offsetY.getValue() != 0));
+        return this.isEnabled() && !hide.getValue();
     }
-    
-    private void renderCustomScoreboard() {
+
+    public void renderAt(float anchorRightX, float anchorTopY) {
         if (mc.theWorld == null || mc.gameSettings.showDebugInfo) return;
+        if (hide.getValue()) return;
         
         ScoreObjective scoreobjective = mc.theWorld.getScoreboard().getObjectiveInDisplaySlot(1);
         if (scoreobjective != null) {
@@ -86,10 +69,8 @@ public class Scoreboard extends Module {
             int listSize = collection.size();
             int height = listSize * mc.fontRendererObj.FONT_HEIGHT;
             ScaledResolution scaledresolution = new ScaledResolution(mc);
-            int screenWidth = scaledresolution.getScaledWidth();
-            int screenHeight = scaledresolution.getScaledHeight();
-            int posX = screenWidth - maxWidth - 3 + offsetX.getValue();
-            int posY = screenHeight / 2 + height / 3 + offsetY.getValue();
+            int posX = (int) (anchorRightX - maxWidth - 3);
+            int posY = (int) (anchorTopY);
             
             int backgroundColor = 0x90505050;
             int headerColor = 0x90FF0000;
@@ -106,6 +87,7 @@ public class Scoreboard extends Module {
             }
             
             GlStateManager.enableBlend();
+            PostProcessing.drawBlurRect(posX - 2, posY - mc.fontRendererObj.FONT_HEIGHT - 1, posX + maxWidth, posY + height);
             Gui.drawRect(posX - 2, posY - mc.fontRendererObj.FONT_HEIGHT - 1, posX + maxWidth, posY + height, backgroundColor);
             Gui.drawRect(posX - 2, posY - 1, posX + maxWidth, posY, headerColor);
             
@@ -125,6 +107,65 @@ public class Scoreboard extends Module {
                 mc.fontRendererObj.drawString(scoreValue, posX + maxWidth - mc.fontRendererObj.getStringWidth(scoreValue), yPos, 0xFFFFFF);
             }
             GlStateManager.disableBlend();
+
+            lastWidth = maxWidth + 4;
+            lastHeight = height + mc.fontRendererObj.FONT_HEIGHT + 2;
+        } else if (mc.currentScreen instanceof net.minecraft.client.gui.GuiChat) {
+            String title = "Test Server";
+            String l1 = "PlayerOne: " + EnumChatFormatting.RED + "20";
+            String l2 = "PlayerTwo: " + EnumChatFormatting.RED + "15";
+            String l3 = "PlayerThree: " + EnumChatFormatting.RED + "7";
+
+            int maxWidth = mc.fontRendererObj.getStringWidth(title);
+            maxWidth = Math.max(maxWidth, mc.fontRendererObj.getStringWidth(l1));
+            maxWidth = Math.max(maxWidth, mc.fontRendererObj.getStringWidth(l2));
+            maxWidth = Math.max(maxWidth, mc.fontRendererObj.getStringWidth(l3));
+
+            int listSize = 3;
+            int height = listSize * mc.fontRendererObj.FONT_HEIGHT;
+            int posX = (int) (anchorRightX - maxWidth - 3);
+            int posY = (int) (anchorTopY);
+
+            int backgroundColor = 0x90505050;
+            int headerColor = 0x90FF0000;
+
+            Framebuffer bloomBuffer = PostProcessing.beginBloom();
+            if (bloomBuffer != null) {
+                int glowColor = epilogue.module.modules.render.PostProcessing.getBloomColor();
+                float glowWidth = (posX + maxWidth) - (posX - 2);
+                float glowHeight = (posY + height) - (posY - mc.fontRendererObj.FONT_HEIGHT - 1);
+                RenderUtil.drawRect(posX - 2, posY - mc.fontRendererObj.FONT_HEIGHT - 1, glowWidth, glowHeight, glowColor);
+                RenderUtil.drawRect(posX - 2, posY - 1, glowWidth, 1, glowColor);
+                mc.getFramebuffer().bindFramebuffer(false);
+            }
+
+            GlStateManager.enableBlend();
+            PostProcessing.drawBlurRect(posX - 2, posY - mc.fontRendererObj.FONT_HEIGHT - 1, posX + maxWidth, posY + height);
+            Gui.drawRect(posX - 2, posY - mc.fontRendererObj.FONT_HEIGHT - 1, posX + maxWidth, posY + height, backgroundColor);
+            Gui.drawRect(posX - 2, posY - 1, posX + maxWidth, posY, headerColor);
+
+            PostProcessing.endBloom(bloomBuffer);
+
+            mc.fontRendererObj.drawString(title,
+                    posX + maxWidth / 2 - mc.fontRendererObj.getStringWidth(title) / 2,
+                    posY - mc.fontRendererObj.FONT_HEIGHT,
+                    0xFFFFFF);
+
+            mc.fontRendererObj.drawString(l3, posX, posY + 0 * mc.fontRendererObj.FONT_HEIGHT, 0xFFFFFF);
+            mc.fontRendererObj.drawString(l2, posX, posY + 1 * mc.fontRendererObj.FONT_HEIGHT, 0xFFFFFF);
+            mc.fontRendererObj.drawString(l1, posX, posY + 2 * mc.fontRendererObj.FONT_HEIGHT, 0xFFFFFF);
+            GlStateManager.disableBlend();
+
+            lastWidth = maxWidth + 4;
+            lastHeight = height + mc.fontRendererObj.FONT_HEIGHT + 2;
         }
+    }
+
+    public float getLastWidth() {
+        return lastWidth <= 0 ? 140f : lastWidth;
+    }
+
+    public float getLastHeight() {
+        return lastHeight <= 0 ? 160f : lastHeight;
     }
 }

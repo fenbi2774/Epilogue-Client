@@ -6,8 +6,6 @@ import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.shader.Framebuffer;
-import epilogue.events.Render2DEvent;
-import epilogue.event.EventTarget;
 import epilogue.module.Module;
 import epilogue.util.render.animations.advanced.Direction;
 import epilogue.value.values.BooleanValue;
@@ -28,11 +26,13 @@ public class ArrayList extends Module {
 
     private final Minecraft mc = Minecraft.getMinecraft();
 
+    private float lastWidth = 0.0f;
+    private float lastHeight = 0.0f;
+
     public final ModeValue animation = new ModeValue("Animation", 2, new String[]{"Scale In", "Move In", "Slide In"});
     public final ModeValue rectangleValue = new ModeValue("Rectangle", 1, new String[]{"None", "Top", "Side"});
     public final BooleanValue backgroundValue = new BooleanValue("Back Ground", true);
     public final IntValue bgAlpha = new IntValue("Back Ground Alpha", 40, 1, 255);
-    public final IntValue positionOffset = new IntValue("Position", 0, -1, 100);
     public final FloatValue textHeight = new FloatValue("Text Height", 5f, 0f, 10f);
     public final FloatValue textOffset = new FloatValue("Text Offset", 2.5f, -6f, 6f);
 
@@ -45,19 +45,27 @@ public class ArrayList extends Module {
         return " " + tag;
     }
 
-    @EventTarget
-    public void onRender2D(Render2DEvent event) {
-        if (!this.isEnabled()) return;
+    public void renderAt(float x, float y) {
         ScaledResolution sr = new ScaledResolution(mc);
-
-        moduleList(sr);
+        moduleList(sr, x, y);
     }
 
-    public void moduleList(ScaledResolution sr) {
+    public float getLastWidth() {
+        return lastWidth <= 0 ? 110f : lastWidth;
+    }
+
+    public float getLastHeight() {
+        return lastHeight <= 0 ? 140f : lastHeight;
+    }
+
+    public void moduleList(ScaledResolution sr, float x, float y) {
         int count = 1;
         float fontHeight = textHeight.getValue();
-        float yValue = 1 + positionOffset.getValue();
+        float yValue = y;
 
+        boolean alignRight = x >= (sr.getScaledWidth() / 2.0f);
+        float anchorRightX = x;
+        float anchorLeftX = x;
         int screenWidth = sr.getScaledWidth();
         epilogue.module.modules.render.Interface interfaceModule = (epilogue.module.modules.render.Interface) Epilogue.moduleManager.getModule("Interface");
 
@@ -71,19 +79,25 @@ public class ArrayList extends Module {
 
         java.util.ArrayList<float[]> moduleRects = new java.util.ArrayList<>();
 
+        float textMinX = Float.MAX_VALUE;
+        float textMinY = Float.MAX_VALUE;
+        float textMaxX = -Float.MAX_VALUE;
+        float textMaxY = -Float.MAX_VALUE;
+
         if (animation.getModeString().equals("Slide In")) {
             enabledMods.sort(sort);
 
             for (Module module : enabledMods) {
+
                 if (module.isHidden()) continue;
                 Translate translate = module.getTranslate();
                 float moduleWidth = FontRenderer.getStringWidth(module.getName() + getFormattedTag(module.getTag()));
 
                 if (module.isEnabled() && !module.isHidden()) {
-                    translate.translate((screenWidth - moduleWidth - 1.0f - positionOffset.getValue()), yValue);
+                    translate.translate((alignRight ? (anchorRightX - moduleWidth - 1.0f) : (anchorLeftX + 1.0f)), yValue);
                     yValue += FontRenderer.getFontHeight() + fontHeight;
                 } else {
-                    translate.animate((screenWidth - 1) + positionOffset.getValue(), -25.0);
+                    translate.animate((alignRight ? (anchorRightX - 1) : (anchorLeftX + 1)), -25.0);
                 }
 
                 if (translate.getX() >= screenWidth) {
@@ -92,11 +106,41 @@ public class ArrayList extends Module {
 
                 float bgWidth = moduleWidth + 4;
                 float bottom = FontRenderer.getFontHeight() + fontHeight;
-                float leftSide = (float) (translate.getX() - 2.0f);
+                float leftSide = (float) (translate.getX() - (alignRight ? 2.0f : 0.0f));
 
                 if (backgroundValue.getValue()) {
                     moduleRects.add(new float[]{leftSide, (float) translate.getY(), bgWidth, bottom});
                 }
+
+                float tLeft = leftSide + 2.0f;
+                float tTop = (float) translate.getY();
+                float tW = moduleWidth;
+                float tH = bottom;
+                textMinX = Math.min(textMinX, tLeft);
+                textMinY = Math.min(textMinY, tTop);
+                textMaxX = Math.max(textMaxX, tLeft + tW);
+                textMaxY = Math.max(textMaxY, tTop + tH);
+            }
+
+            if (!moduleRects.isEmpty()) {
+                float minX = Float.MAX_VALUE;
+                float minY = Float.MAX_VALUE;
+                float maxX = -Float.MAX_VALUE;
+                float maxY = -Float.MAX_VALUE;
+                for (float[] rect : moduleRects) {
+                    minX = Math.min(minX, rect[0]);
+                    minY = Math.min(minY, rect[1]);
+                    maxX = Math.max(maxX, rect[0] + rect[2]);
+                    maxY = Math.max(maxY, rect[1] + rect[3]);
+                }
+                lastWidth = maxX - minX;
+                lastHeight = maxY - minY;
+            } else if (textMaxX > textMinX && textMaxY > textMinY) {
+                lastWidth = textMaxX - textMinX;
+                lastHeight = textMaxY - textMinY;
+            } else {
+                lastWidth = 0.0f;
+                lastHeight = 0.0f;
             }
 
             if (backgroundValue.getValue() && !moduleRects.isEmpty()) {
@@ -146,7 +190,7 @@ public class ArrayList extends Module {
                 }
             }
 
-            yValue = 1 + positionOffset.getValue();
+            yValue = y;
             count = 1;
 
             for (Module module : enabledMods) {
@@ -166,9 +210,9 @@ public class ArrayList extends Module {
 
                 float bgWidth = moduleWidth + 4;
                 float bgHeight = FontRenderer.getFontHeight() + fontHeight;
-                float bgLeft = (float) (translate.getX() - 2.0f);
+                float bgLeft = (float) (translate.getX() - (alignRight ? 2.0f : 0.0f));
                 float bgTop = (float) translate.getY();
-                
+
                 float textLeft = bgLeft + 2.0f;
                 float textTop = bgTop + (bgHeight - FontRenderer.getFontHeight()) / 2.0f + textOffset.getValue();
 
@@ -212,7 +256,7 @@ public class ArrayList extends Module {
             enabledMods.sort(sort);
 
             moduleRects.clear();
-            yValue = 1 + positionOffset.getValue();
+            yValue = y;
 
             for (Module module : enabledMods) {
                 if (module.isHidden()) continue;
@@ -222,16 +266,46 @@ public class ArrayList extends Module {
                 if (!module.isEnabled() && moduleAnimation.finished(Direction.BACKWARDS)) continue;
 
                 float moduleWidth = FontRenderer.getStringWidth(module.getName() + getFormattedTag(module.getTag()));
-                float xValue = (screenWidth - moduleWidth - 1.0f - positionOffset.getValue());
+                float xValue = alignRight ? (anchorRightX - moduleWidth - 1.0f) : (anchorLeftX + 1.0f);
                 float bgWidth = moduleWidth + 4;
                 float bgHeight = FontRenderer.getFontHeight() + fontHeight;
-                float leftSide = xValue - 2.0f;
+                float leftSide = xValue - (alignRight ? 2.0f : 0.0f);
 
                 if (backgroundValue.getValue()) {
                     moduleRects.add(new float[]{leftSide, yValue, bgWidth, bgHeight});
                 }
 
+                float tLeft = leftSide + 2.0f;
+                float tTop = yValue;
+                float tW = moduleWidth;
+                float tH = bgHeight;
+                textMinX = Math.min(textMinX, tLeft);
+                textMinY = Math.min(textMinY, tTop);
+                textMaxX = Math.max(textMaxX, tLeft + tW);
+                textMaxY = Math.max(textMaxY, tTop + tH);
+
                 yValue += (float) (moduleAnimation.getOutput() * (FontRenderer.getFontHeight() + fontHeight));
+            }
+
+            if (!moduleRects.isEmpty()) {
+                float minX = Float.MAX_VALUE;
+                float minY = Float.MAX_VALUE;
+                float maxX = -Float.MAX_VALUE;
+                float maxY = -Float.MAX_VALUE;
+                for (float[] rect : moduleRects) {
+                    minX = Math.min(minX, rect[0]);
+                    minY = Math.min(minY, rect[1]);
+                    maxX = Math.max(maxX, rect[0] + rect[2]);
+                    maxY = Math.max(maxY, rect[1] + rect[3]);
+                }
+                lastWidth = maxX - minX;
+                lastHeight = maxY - minY;
+            } else if (textMaxX > textMinX && textMaxY > textMinY) {
+                lastWidth = textMaxX - textMinX;
+                lastHeight = textMaxY - textMinY;
+            } else {
+                lastWidth = 0.0f;
+                lastHeight = 0.0f;
             }
 
             if (backgroundValue.getValue() && !moduleRects.isEmpty()) {
@@ -281,7 +355,7 @@ public class ArrayList extends Module {
                 }
             }
 
-            yValue = 1 + positionOffset.getValue();
+            yValue = y;
 
             for (Module module : enabledMods) {
                 if (module.isHidden()) continue;
@@ -293,11 +367,11 @@ public class ArrayList extends Module {
                 float moduleWidth = FontRenderer.getStringWidth(module.getName() + getFormattedTag(module.getTag()));
                 float bgWidth = moduleWidth + 4;
                 float bgHeight = FontRenderer.getFontHeight() + fontHeight;
-                
-                float baseX = screenWidth - moduleWidth - 1.0f - positionOffset.getValue();
-                float bgLeft = baseX - 2.0f;
+
+                float baseX = alignRight ? (anchorRightX - moduleWidth - 1.0f) : (anchorLeftX + 1.0f);
+                float bgLeft = baseX - (alignRight ? 2.0f : 0.0f);
                 float bgTop = yValue;
-                
+
                 float textLeft = baseX;
                 float textTop = bgTop + (bgHeight - FontRenderer.getFontHeight()) / 2.0f + textOffset.getValue();
 
@@ -306,13 +380,14 @@ public class ArrayList extends Module {
                 switch (animation.getModeString()) {
                     case "Move In":
                         float moveOffset = (float) Math.abs((moduleAnimation.getOutput() - 1.0) * (2.0 + moduleWidth));
-                        textLeft = baseX + moveOffset;
-                        bgLeft = baseX + moveOffset - 2.0f;
+                        textLeft = alignRight ? (baseX + moveOffset) : (baseX - moveOffset);
+                        bgLeft = alignRight ? (baseX + moveOffset - 2.0f) : (baseX - moveOffset);
                         break;
                     case "Scale In":
                         float scale = (float) moduleAnimation.getOutput();
                         float centerX = baseX + moduleWidth / 2.0f;
                         float centerY = bgTop + bgHeight / 2.0f;
+
                         RenderUtil.scaleStart(centerX, centerY, scale);
                         alphaAnimation = scale;
                         break;

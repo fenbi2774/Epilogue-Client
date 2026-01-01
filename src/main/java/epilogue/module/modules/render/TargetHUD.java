@@ -75,8 +75,6 @@ public class TargetHUD extends Module {
 
     public final ModeValue mode = new ModeValue("Mode", 0, new String[]{"Exhibition", "Myau", "Astolfo", "Adjust", "Moon", "Augustus", "Rise", "NeverLose", "Akrien"});
     public final ModeValue color = new ModeValue("Color", 0, new String[]{"Default", "Hud"}, () -> this.mode.getValue() == 1);
-    public final ModeValue posX = new ModeValue("Position X", 1, new String[]{"Left", "Middle", "Right"});
-    public final ModeValue posY = new ModeValue("Position Y", 1, new String[]{"Top", "Middle", "Bottom"});
 
     private static final float SCALE = 1.0F;
     private static final float EXHIBITION_Y_OFFSET = 0.0F;
@@ -88,16 +86,40 @@ public class TargetHUD extends Module {
     private static final float ASTOLFO_Y_OFFSET = 0.75F;
     private static final float NEVERLOSE_Y_OFFSET = 2.0F;
     private static final float AKRIEN_Y_OFFSET = 2.0F;
-    public final IntValue offX = new IntValue("Offset X", 0, -255, 255);
-    public final IntValue offY = new IntValue("Offset Y", 40, -255, 255);
     public final PercentValue background = new PercentValue("Back Ground", 25, () -> this.mode.getValue() == 1);
     public final BooleanValue head = new BooleanValue("Head", true);
     public final BooleanValue indicator = new BooleanValue("Indicator", true, () -> this.mode.getValue() == 1);
+
     public final BooleanValue outline = new BooleanValue("Outline", false, () -> this.mode.getValue() == 1);
     public final BooleanValue animations = new BooleanValue("Animations", true, () -> this.mode.getValue() == 1);
     public final BooleanValue shadow = new BooleanValue("Text Shadow", true, () -> this.mode.getValue() == 1);
     public final BooleanValue kaOnly = new BooleanValue("Only KillAura", true);
     public final BooleanValue chatPreview = new BooleanValue("Chat Preview", false);
+
+    private float anchorX = 0.0f;
+    private float anchorY = 0.0f;
+
+    private float lastWidth = 0.0f;
+    private float lastHeight = 0.0f;
+
+    public void renderAt(float x, float y) {
+        this.anchorX = x;
+        this.anchorY = y;
+        render(new Render2DEvent(0.0f));
+    }
+
+    public float getLastWidth() {
+        return lastWidth <= 0 ? 180f : lastWidth;
+    }
+
+    public float getLastHeight() {
+        return lastHeight <= 0 ? 80f : lastHeight;
+    }
+
+    private void setLastSize(float w, float h) {
+        this.lastWidth = w;
+        this.lastHeight = h;
+    }
 
     private EntityLivingBase resolveTarget() {
         Aura aura = (Aura) Epilogue.moduleManager.modules.get(Aura.class);
@@ -148,60 +170,64 @@ public class TargetHUD extends Module {
         super("TargetHUD", false, true);
     }
 
-    @EventTarget
-    public void onRender(Render2DEvent event) {
-        if (this.isEnabled() && mc.thePlayer != null) {
-            EntityLivingBase currentTarget = this.resolveTarget();
+    public void render(Render2DEvent event) {
+        if (!this.isEnabled() || mc.thePlayer == null) {
+            return;
+        }
 
-            if (currentTarget == null) {
-                this.target = null;
-                return;
-            }
+        EntityLivingBase currentTarget = this.resolveTarget();
+        if (currentTarget == null && mc.currentScreen instanceof GuiChat) {
+            currentTarget = mc.thePlayer;
+        }
 
-            if (this.target != currentTarget) {
-                this.target = currentTarget;
-                this.headTexture = null;
-                this.animTimer.setTime();
-                float heal = this.target.getHealth() / 2.0F + this.target.getAbsorptionAmount() / 2.0F;
-                this.oldHealth = heal;
-                this.newHealth = heal;
+        if (currentTarget == null) {
+            this.target = null;
+            return;
+        }
 
-                this.lastTargetEntityId = currentTarget.getEntityId();
-                this.lastTargetHealth = currentTarget.getHealth();
-                this.lastTargetHurtTime = currentTarget.hurtTime;
-            } else {
-                updateHurtTrigger(currentTarget);
-            }
+        if (this.target != currentTarget) {
+            this.target = currentTarget;
+            this.headTexture = null;
+            this.animTimer.setTime();
+            float heal = this.target.getHealth() / 2.0F + this.target.getAbsorptionAmount() / 2.0F;
+            this.oldHealth = heal;
+            this.newHealth = heal;
 
-            switch (this.mode.getValue()) {
-                case 0:
-                    renderExhibitionMode();
-                    break;
-                case 1:
-                    renderMyauMode();
-                    break;
-                case 2:
-                    renderAstolfoMode();
-                    break;
-                case 3:
-                    renderAdjustMode();
-                    break;
-                case 4:
-                    renderMoonMode();
-                    break;
-                case 5:
-                    renderAugustusMode();
-                    break;
-                case 6:
-                    renderRiseMode();
-                    break;
-                case 7:
-                    renderNeverLoseMode();
-                    break;
-                case 8:
-                    renderAkrienMode();
-                    break;
-            }
+            this.lastTargetEntityId = currentTarget.getEntityId();
+            this.lastTargetHealth = currentTarget.getHealth();
+            this.lastTargetHurtTime = currentTarget.hurtTime;
+        } else {
+            updateHurtTrigger(currentTarget);
+        }
+
+        switch (this.mode.getValue()) {
+            case 0:
+                renderExhibitionMode();
+                break;
+            case 1:
+                renderMyauMode();
+                break;
+            case 2:
+                renderAstolfoMode();
+                break;
+            case 3:
+                renderAdjustMode();
+                break;
+            case 4:
+                renderMoonMode();
+                break;
+            case 5:
+                renderAugustusMode();
+                break;
+            case 6:
+                renderRiseMode();
+                break;
+            case 7:
+                renderNeverLoseMode();
+                break;
+            case 8:
+                renderAkrienMode();
+                break;
         }
     }
 
@@ -252,28 +278,7 @@ public class TargetHUD extends Module {
     }
 
     private float[] computePos(float width, float height) {
-        ScaledResolution resolution = new ScaledResolution(mc);
-        float posX = this.offX.getValue().floatValue() / SCALE;
-
-        switch (this.posX.getValue()) {
-            case 1:
-                posX += (float) resolution.getScaledWidth() / SCALE / 2.0F - width / 2.0F;
-                break;
-            case 2:
-                posX *= -1.0F;
-                posX += (float) resolution.getScaledWidth() / SCALE - width;
-        }
-
-        float posY = this.offY.getValue().floatValue() / SCALE;
-        switch (this.posY.getValue()) {
-            case 1:
-                posY += (float) resolution.getScaledHeight() / SCALE / 2.0F - height / 2.0F;
-                break;
-            case 2:
-                posY *= -1.0F;
-                posY += (float) resolution.getScaledHeight() / SCALE - height;
-        }
-        return new float[]{posX, posY};
+        return new float[]{anchorX / SCALE, anchorY / SCALE};
     }
 
     private void applyTargetHudTransform(float x, float y, float width, float height) {
@@ -399,6 +404,7 @@ public class TargetHUD extends Module {
 
         float width = 170.0F;
         float height = 43.0F;
+        setLastSize(width, height + AKRIEN_Y_OFFSET);
         float[] pos = computePos(width, height);
         float x = pos[0];
         float y = pos[1] + AKRIEN_Y_OFFSET;
@@ -488,27 +494,11 @@ public class TargetHUD extends Module {
         float headIconOffset = this.head.getValue() && this.headTexture != null ? 25.0F : 0.0F;
         float barTotalWidth = Math.max(headIconOffset + 70.0F, headIconOffset + 2.0F + barContentWidth + 2.0F);
 
-        float posX = this.offX.getValue().floatValue() / SCALE;
+        setLastSize(barTotalWidth, 27.0F + MYAU_Y_OFFSET);
 
-        switch (this.posX.getValue()) {
-            case 1:
-                posX += (float) scaledResolution.getScaledWidth() / SCALE / 2.0F - barTotalWidth / 2.0F;
-                break;
-            case 2:
-                posX *= -1.0F;
-                posX += (float) scaledResolution.getScaledWidth() / SCALE - barTotalWidth;
-        }
-
-        float posY = this.offY.getValue().floatValue() / SCALE;
-        switch (this.posY.getValue()) {
-            case 1:
-                posY += (float) scaledResolution.getScaledHeight() / SCALE / 2.0F - 13.5F;
-                break;
-            case 2:
-                posY *= -1.0F;
-                posY += (float) scaledResolution.getScaledHeight() / SCALE - 27.0F;
-        }
-        posY += MYAU_Y_OFFSET;
+        float[] pos = computePos(barTotalWidth, 27.0F);
+        float posX = pos[0];
+        float posY = pos[1] + MYAU_Y_OFFSET;
 
         float finalPosX = posX;
         float finalPosY = posY;
@@ -580,6 +570,7 @@ public class TargetHUD extends Module {
 
         float width = 160.0F;
         float height = 45.0F;
+        setLastSize(width, height + ADJUST_Y_OFFSET);
         float[] pos = computePos(width, height);
         float x = pos[0];
         float y = pos[1] + ADJUST_Y_OFFSET;
@@ -628,6 +619,7 @@ public class TargetHUD extends Module {
 
         float width = 150.0F;
         float height = 40.5F;
+        setLastSize(width, height + MOON_Y_OFFSET);
         float[] pos = computePos(width, height);
         float x = pos[0];
         float y = pos[1] + MOON_Y_OFFSET;
@@ -695,6 +687,7 @@ public class TargetHUD extends Module {
 
         float width = 160.0F;
         float height = 40.5F;
+        setLastSize(width, height + AUGUSTUS_Y_OFFSET);
         float[] pos = computePos(width, height);
         float x = pos[0];
         float y = pos[1] + AUGUSTUS_Y_OFFSET;
@@ -760,6 +753,7 @@ public class TargetHUD extends Module {
 
         float width = 160.0F;
         float height = 40.5F;
+        setLastSize(width, height + RISE_Y_OFFSET);
         float[] pos = computePos(width, height);
         float x = pos[0];
         float y = pos[1] + RISE_Y_OFFSET;
@@ -830,6 +824,8 @@ public class TargetHUD extends Module {
         float height = 32.0F;
         float nameWidth = mc.fontRendererObj.getStringWidth(target.getName());
         float dynamicWidth = Math.max(baseWidth, nameWidth + 42.0F);
+
+        setLastSize(dynamicWidth, height + NEVERLOSE_Y_OFFSET);
 
         float[] pos = computePos(dynamicWidth, height);
         float x = pos[0];
@@ -922,6 +918,7 @@ public class TargetHUD extends Module {
 
         float width = 160.0F;
         float height = 55.0F;
+        setLastSize(width, height + ASTOLFO_Y_OFFSET);
         float[] pos = computePos(width, height);
         float x = pos[0];
         float y = pos[1] + ASTOLFO_Y_OFFSET;
@@ -952,8 +949,29 @@ public class TargetHUD extends Module {
 
         GlStateManager.pushMatrix();
         GlStateManager.translate(2.0F, 15.0F, 0.0F);
-        drawEntityOnScreen(target);
+
+        float largestSize = Math.max(target.height, target.width);
+        float relativeScale = Math.max(largestSize / 1.8F, 1);
+
+        GlStateManager.scale((float) -16 / relativeScale, (float) 16 / relativeScale, (float) 16 / relativeScale);
+        GlStateManager.rotate(180.0F, 0.0F, 0.0F, 1.0F);
+        GlStateManager.rotate(135.0F, 0.0F, 1.0F, 0.0F);
+        RenderHelper.enableStandardItemLighting();
+        GlStateManager.rotate(-135.0F, 0.0F, 1.0F, 0.0F);
+        GlStateManager.rotate(-((float) Math.atan((float) 17 / 40.0F)) * 20.0F, 1.0F, 0.0F, 0.0F);
+        GlStateManager.translate(0.0F, 0.0F, 0.0F);
+        RenderManager renderManager = mc.getRenderManager();
+        renderManager.setPlayerViewY(180.0F);
+        renderManager.setRenderShadow(false);
+        renderManager.renderEntityWithPosYaw(target, 0.0D, 0.0D, 0.0D, 0.0F, 1.0F);
+        renderManager.setRenderShadow(true);
         GlStateManager.popMatrix();
+        RenderHelper.disableStandardItemLighting();
+        GlStateManager.disableRescaleNormal();
+        GlStateManager.setActiveTexture(OpenGlHelper.lightmapTexUnit);
+        GlStateManager.disableTexture2D();
+        GlStateManager.setActiveTexture(OpenGlHelper.defaultTexUnit);
+
         mc.fontRendererObj.drawStringWithShadow(target.getName(), 50.0F, 6.0F, -1);
         GlStateManager.pushMatrix();
         GlStateManager.scale(1.5F, 1.5F, 1.5F);
@@ -981,27 +999,12 @@ public class TargetHUD extends Module {
         double boxWidth = 40 + mc.fontRendererObj.getStringWidth(target.getName());
         double renderWidth = Math.max(boxWidth, 120);
 
-        float posX = this.offX.getValue().floatValue() / SCALE;
+        setLastSize((float) renderWidth, 40.0F + EXHIBITION_Y_OFFSET);
 
-        switch (this.posX.getValue()) {
-            case 1:
-                posX += (float) resolution.getScaledWidth() / SCALE / 2.0F - (float) renderWidth / 2.0F;
-                break;
-            case 2:
-                posX *= -1.0F;
-                posX += (float) resolution.getScaledWidth() / SCALE - (float) renderWidth;
-        }
+        float[] pos = computePos((float) renderWidth, 40.0F);
+        float posX = pos[0];
+        float posY = pos[1] + EXHIBITION_Y_OFFSET;
 
-        float posY = this.offY.getValue().floatValue() / SCALE;
-        switch (this.posY.getValue()) {
-            case 1:
-                posY += (float) resolution.getScaledHeight() / SCALE / 2.0F - 20.0F;
-                break;
-            case 2:
-                posY *= -1.0F;
-                posY += (float) resolution.getScaledHeight() / SCALE - 40.0F;
-        }
-        posY += EXHIBITION_Y_OFFSET;
         GlStateManager.pushMatrix();
         GlStateManager.translate(posX + (float) renderWidth / 2.0F, posY + 20.0F, 0);
         float finalScale = SCALE;

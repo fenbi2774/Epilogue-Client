@@ -50,6 +50,12 @@ public class Notification extends Module {
 
     private static Notification instance;
 
+    private float anchorX;
+    private float anchorY;
+
+    private float lastWidth = NOTIFICATION_WIDTH;
+    private float lastHeight = NOTIFICATION_HEIGHT;
+
     public Notification() {
         super("Notification", false);
         instance = this;
@@ -57,6 +63,12 @@ public class Notification extends Module {
 
     public static Notification getInstance() {
         return instance;
+    }
+
+    public void renderAt(float anchorX, float anchorY) {
+        this.anchorX = anchorX;
+        this.anchorY = anchorY;
+        onRender2D(new Render2DEvent(0.0f));
     }
 
     public void onModuleToggle(String moduleName, boolean enabled) {
@@ -101,7 +113,6 @@ public class Notification extends Module {
         boolean justCreated = true;
     }
 
-    @EventTarget
     public void onRender2D(Render2DEvent event) {
         if (!this.isEnabled()) {
             return;
@@ -109,11 +120,31 @@ public class Notification extends Module {
 
         updateNotificationStates();
 
-        ScaledResolution sr = new ScaledResolution(mc);
-        float screenWidth = sr.getScaledWidth();
-        float screenHeight = sr.getScaledHeight();
+        boolean preview = mc.currentScreen instanceof net.minecraft.client.gui.GuiChat;
+        if (preview && displayQueue.isEmpty()) {
+            displayQueue.add(new ModuleToggleNotification("Fly", true));
+            displayQueue.add(new ModuleToggleNotification("Sprint", true));
+            displayQueue.add(new ModuleToggleNotification("KillAura", false));
 
-        float rightMargin = 15f;
+            for (ModuleToggleNotification n : displayQueue) {
+                NotificationState s = notificationStates.get(n);
+                if (s == null) {
+                    s = new NotificationState();
+                    s.alpha = 1.0f;
+                    s.targetAlpha = 1.0f;
+                    s.offsetX = 0.0f;
+                    s.targetOffsetX = 0.0f;
+                    s.scale = 1.0f;
+                    s.targetScale = 1.0f;
+                    s.removing = false;
+                    s.justCreated = false;
+                    notificationStates.put(n, s);
+                }
+            }
+        }
+
+        boolean alignRight = anchorX >= (new ScaledResolution(mc).getScaledWidth() / 2.0f);
+        float sideMargin = 15f;
         float bottomMargin = 15f;
 
         GlStateManager.pushMatrix();
@@ -123,6 +154,7 @@ public class Notification extends Module {
         GL11.glHint(GL11.GL_LINE_SMOOTH_HINT, GL11.GL_NICEST);
 
         int position = 0;
+        int visibleCount = 0;
         for (ModuleToggleNotification notification : displayQueue) {
             NotificationState state = notificationStates.get(notification);
             if (state == null) continue;
@@ -130,12 +162,15 @@ public class Notification extends Module {
             state.position = position;
 
             float yOffset = position * (NOTIFICATION_HEIGHT + NOTIFICATION_SPACING);
-            float x = screenWidth - NOTIFICATION_WIDTH - rightMargin + state.offsetX;
-            float y = screenHeight - NOTIFICATION_HEIGHT - bottomMargin - yOffset;
+            float x = alignRight
+                    ? (anchorX - NOTIFICATION_WIDTH - sideMargin + state.offsetX)
+                    : (anchorX + sideMargin - state.offsetX);
+            float y = anchorY - NOTIFICATION_HEIGHT - bottomMargin - yOffset;
 
             updateAnimation(state);
 
             if (state.alpha > 0.02f) {
+                visibleCount++;
                 GlStateManager.pushMatrix();
                 
                 float centerX = x + NOTIFICATION_WIDTH / 2;
@@ -154,6 +189,10 @@ public class Notification extends Module {
             }
         }
 
+        float count = Math.max(1, visibleCount);
+        lastWidth = NOTIFICATION_WIDTH;
+        lastHeight = (NOTIFICATION_HEIGHT * count) + (NOTIFICATION_SPACING * (count - 1));
+
         GL11.glDisable(GL11.GL_LINE_SMOOTH);
         GlStateManager.disableBlend();
         GlStateManager.popMatrix();
@@ -162,6 +201,19 @@ public class Notification extends Module {
             NotificationState state = notificationStates.get(notification);
             return state == null || (state.removing && state.alpha < 0.01f);
         });
+
+        if (preview) {
+            displayQueue.clear();
+            notificationStates.clear();
+        }
+    }
+
+    public float getLastWidth() {
+        return lastWidth <= 0 ? NOTIFICATION_WIDTH : lastWidth;
+    }
+
+    public float getLastHeight() {
+        return lastHeight <= 0 ? NOTIFICATION_HEIGHT : lastHeight;
     }
 
     private void updateNotificationStates() {

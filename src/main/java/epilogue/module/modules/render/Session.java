@@ -5,7 +5,6 @@ import net.minecraft.client.gui.ScaledResolution;
 import epilogue.events.Render2DEvent;
 import epilogue.event.EventTarget;
 import epilogue.module.Module;
-import epilogue.value.values.IntValue;
 import epilogue.util.render.RenderUtil;
 import epilogue.util.render.PostProcessing;
 import epilogue.font.FontTransformer;
@@ -18,21 +17,22 @@ import net.minecraft.client.shader.Framebuffer;
 public class Session extends Module {
 
     private final Minecraft mc = Minecraft.getMinecraft();
-    public final IntValue offsetX = new IntValue("Offset X", 5, -1000, 1000);
-    public final IntValue offsetY = new IntValue("Offset Y", 5, -1000, 1000);
     private final long sessionStartTime;
+
+    private float lastWidth;
+    private float lastHeight;
 
     public Session() {
         super("Session", false);
         this.sessionStartTime = System.currentTimeMillis();
     }
-    @EventTarget
-    public void onRender2D(Render2DEvent event) {
-        if (!this.isEnabled()) return;
+
+    public void renderAt(float x, float y) {
         ScaledResolution sr = new ScaledResolution(mc);
         FontTransformer transformer = FontTransformer.getInstance();
         Font titleFont = transformer.getFont("Arial", 53);
         Font textFont = transformer.getFont("Arial", 39);
+
         String title = "Session Information";
         String timeText = "Elapsed Time: " + getTimeString();
         String serverText = "Server Info: " + getServerInfo();
@@ -45,14 +45,16 @@ public class Session extends Module {
         float bgWidth = Math.max(maxTextWidth + 20, titleWidth + 20);
         float bgHeight = 100;
         float cornerRadius = 23;
-        float x = sr.getScaledWidth() - bgWidth - 10 + offsetX.getValue();
-        float y = 20 + offsetY.getValue();
+        lastWidth = bgWidth;
+        lastHeight = bgHeight;
         Framebuffer bloomBuffer = PostProcessing.beginBloom();
         if (bloomBuffer != null) {
             RenderUtil.drawRoundedRect(x, y, bgWidth, bgHeight, cornerRadius, epilogue.module.modules.render.PostProcessing.getBloomColor());
             mc.getFramebuffer().bindFramebuffer(false);
         }
-        PostProcessing.drawBlurRect(x, y, x + bgWidth, y + bgHeight);
+
+        PostProcessing.drawBlur(x, y, x + bgWidth, y + bgHeight, () -> () ->
+                RenderUtil.drawRoundedRect(x, y, bgWidth, bgHeight, cornerRadius, -1));
         RenderUtil.drawRoundedRect(x, y, bgWidth, bgHeight, cornerRadius, new Color(0, 0, 0, 145).getRGB());
         PostProcessing.endBloom(bloomBuffer);
 
@@ -67,6 +69,15 @@ public class Session extends Module {
         CustomFontRenderer.drawStringWithShadow(serverText, textX, serverY, 0xFFFFFF, textFont);
         CustomFontRenderer.drawStringWithShadow(userText, textX, userY, 0xFFFFFF, textFont);
     }
+
+    public float getLastWidth() {
+        return lastWidth <= 0 ? 200f : lastWidth;
+    }
+
+    public float getLastHeight() {
+        return lastHeight <= 0 ? 110f : lastHeight;
+    }
+
     private String getTimeString() {
         long currentTime = System.currentTimeMillis();
         long elapsedMillis = currentTime - sessionStartTime;

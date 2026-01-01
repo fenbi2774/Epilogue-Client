@@ -3,22 +3,19 @@ package epilogue.module.modules.render;
 import epilogue.Epilogue;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Gui;
-import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.shader.Framebuffer;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.potion.Potion;
 import net.minecraft.potion.PotionEffect;
 import net.minecraft.util.ResourceLocation;
-import epilogue.event.EventTarget;
-import epilogue.events.Render2DEvent;
 import epilogue.font.CustomFontRenderer;
 import epilogue.font.FontTransformer;
 import epilogue.module.Module;
 import epilogue.util.render.ColorUtil;
 import epilogue.util.render.PostProcessing;
 import epilogue.util.render.RenderUtil;
-import epilogue.value.values.IntValue;
+import org.lwjgl.opengl.GL11;
 
 import java.awt.Color;
 import java.awt.Font;
@@ -26,14 +23,10 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
-import org.lwjgl.opengl.GL11;
 
 public class PotionEffects extends Module {
 
     private static final Minecraft mc = Minecraft.getMinecraft();
-
-    public final IntValue offsetX = new IntValue("Offset X", 5, -1000, 1000);
-    public final IntValue offsetY = new IntValue("Offset Y", 80, -1000, 1000);
 
     private float currentHeight = 0.0f;
 
@@ -43,16 +36,23 @@ public class PotionEffects extends Module {
         super("PotionEffects", false);
     }
 
-    @EventTarget
-    public void onRender2D(Render2DEvent event) {
-        if (!this.isEnabled()) return;
+    public void renderAt(float x, float y) {
         if (mc.thePlayer == null || mc.theWorld == null) return;
 
         Collection<PotionEffect> active = mc.thePlayer.getActivePotionEffects();
-        if (active == null || active.isEmpty()) return;
+        boolean preview = (mc.currentScreen instanceof net.minecraft.client.gui.GuiChat);
+        if ((active == null || active.isEmpty()) && !preview) return;
 
-        List<PotionEffect> potions = new ArrayList<>(active);
-        potions.sort(Comparator.comparingInt(PotionEffect::getDuration).reversed());
+        List<PotionEffect> potions;
+        if (active == null || active.isEmpty()) {
+            potions = new ArrayList<>();
+            potions.add(new PotionEffect(Potion.moveSpeed.id, 20 * 120, 1));
+            potions.add(new PotionEffect(Potion.damageBoost.id, 20 * 45, 0));
+            potions.add(new PotionEffect(Potion.fireResistance.id, 20 * 300, 0));
+        } else {
+            potions = new ArrayList<>(active);
+            potions.sort(Comparator.comparingInt(PotionEffect::getDuration).reversed());
+        }
 
         FontTransformer transformer = FontTransformer.getInstance();
         Font font = transformer.getFont("OpenSansSemiBold", 32);
@@ -97,10 +97,6 @@ public class PotionEffects extends Module {
         }
 
         float height = Math.max(headerHeight, currentHeight);
-
-        ScaledResolution sr = new ScaledResolution(mc);
-        float x = sr.getScaledWidth() - width - 10 + offsetX.getValue();
-        float y = 20 + offsetY.getValue();
 
         GlStateManager.enableBlend();
         GlStateManager.tryBlendFuncSeparate(770, 771, 1, 0);
@@ -174,6 +170,42 @@ public class PotionEffects extends Module {
         GL11.glDisable(GL11.GL_LINE_SMOOTH);
 
         PostProcessing.endBloom(bloomBuffer);
+    }
+
+    public float getCurrentWidth() {
+        Collection<PotionEffect> active = mc.thePlayer != null ? mc.thePlayer.getActivePotionEffects() : null;
+        if (active == null || active.isEmpty()) return 80f;
+
+        List<PotionEffect> potions = new ArrayList<>(active);
+        potions.sort(Comparator.comparingInt(PotionEffect::getDuration).reversed());
+
+        FontTransformer transformer = FontTransformer.getInstance();
+        Font font = transformer.getFont("OpenSansSemiBold", 32);
+        if (font == null) font = transformer.getFont("Arial", 32);
+        if (font == null) return 80f;
+
+        float padding = 5f;
+        String title = "Potions";
+        float titleWidth = CustomFontRenderer.getStringWidth(title, font);
+        float maxWidth = titleWidth + padding * 2;
+
+        for (PotionEffect effect : potions) {
+            Potion potion = Potion.potionTypes[effect.getPotionID()];
+            if (potion == null) continue;
+            String potionName = I18n.format(potion.getName());
+            String amp = effect.getAmplifier() > 0 ? " " + I18n.format("enchantment.level." + (effect.getAmplifier() + 1)) : "";
+            String nameText = potionName + amp;
+            String durationText = Potion.getDurationString(effect);
+            float nameW = CustomFontRenderer.getStringWidth(nameText, font);
+            float durW = CustomFontRenderer.getStringWidth(durationText, font);
+            float localWidth = nameW + durW + padding * 3 + 12f;
+            if (localWidth > maxWidth) maxWidth = localWidth;
+        }
+        return Math.max(maxWidth, 80f);
+    }
+
+    public float getCurrentHeight() {
+        return Math.max(20f, currentHeight);
     }
 
     private void drawPotionHeaderIcon(float x, float y, float w, float h, int color) {

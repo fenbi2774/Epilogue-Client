@@ -15,6 +15,9 @@ import epilogue.util.MathUtil;
 import epilogue.value.Value;
 import epilogue.value.ValueHandler;
 import epilogue.config.AccountConfig;
+import epilogue.config.WidgetConfig;
+import epilogue.hud.widget.WidgetManager;
+import epilogue.hud.widget.impl.HudWidgets;
 
 import java.lang.reflect.Field;
 
@@ -36,6 +39,8 @@ public class Epilogue {
     public static GuiManager guiManager;
     public static MathUtil rand;
     public static EventManager eventManager;
+    public static WidgetManager widgetManager;
+    public static WidgetConfig widgetConfig;
 
     public Epilogue() {
         this.init();
@@ -57,6 +62,8 @@ public class Epilogue {
         moduleManager = new ModuleManager();
         handler = new Handler();
         guiManager = new GuiManager();
+        widgetManager = new WidgetManager();
+        widgetConfig = new WidgetConfig("widgets");
         EventManager.register(rotationManager);
         EventManager.register(floatManager);
         EventManager.register(blinkManager);
@@ -64,6 +71,7 @@ public class Epilogue {
         EventManager.register(lagManager);
         EventManager.register(moduleManager);
         EventManager.register(handler);
+        EventManager.register(widgetManager);
         moduleManager.modules.put(AimAssist.class, new AimAssist());
         moduleManager.modules.put(Animations.class, new Animations());
         moduleManager.modules.put(NoDebuff.class, new NoDebuff());
@@ -179,6 +187,9 @@ public class Epilogue {
             valueHandler.properties.put(module.getClass(), properties);
             EventManager.register(module);
         }
+
+        HudWidgets.registerAll();
+        widgetConfig.load();
         epilogue.config.Config config = new epilogue.config.Config("default", true);
         if (config.file.exists()) {
             config.load();
@@ -189,6 +200,9 @@ public class Epilogue {
         if (targetManager.file.exists()) {
             targetManager.load();
         }
-        Runtime.getRuntime().addShutdownHook(new Thread(config::save));
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            config.save();
+            widgetConfig.save();
+        }));
     }
 }
