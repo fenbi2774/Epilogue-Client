@@ -1327,7 +1327,10 @@ public class DynamicIsland extends Module {
             cachedServerIP = "hypixel.net";
         } else if (GetIPUtil.containsPattern(".de")) {
             cachedServerIP = "NyaProxy";
-        } else {
+        } else if(GetIPUtil.containsPattern(".us.")) {
+            cachedServerIP = "hypixel.net";
+        }
+        else {
             cachedServerIP = mc.getCurrentServerData().serverIP;
         }
         cachedPing = (int) mc.getCurrentServerData().pingToServer;
