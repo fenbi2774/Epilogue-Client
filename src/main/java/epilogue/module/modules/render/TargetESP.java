@@ -415,8 +415,8 @@ public class TargetESP extends Module {
 
         for (int layer = 0; layer < layers; layer++) {
             for (int i = 0; i < pointsPerLayer; i++) {
-                for (int _ = 0; _ < 1; _++) {
-                    double p = (i + (_ * 0.0)) / (double) pointsPerLayer;
+                for (int i1 = 0; i1 < 1; i1++) {
+                    double p = (i + (i1 * 0.0)) / (double) pointsPerLayer;
                     double a = (p * Math.PI * 2.0) + (spin * 1.25);
 
                     double x = Math.cos(a) * ((target.width * 0.56) + baseRadius * 0.78 + (0.26 + baseRadius * 0.38) * inOut);
@@ -446,8 +446,8 @@ public class TargetESP extends Module {
 
         int spikes = 10;
         for (int i = 0; i < spikes; i++) {
-            for (int _ = 0; _ < 1; _++) {
-                double p = (i + (_ * 0.0)) / (double) spikes;
+            for (int i1 = 0; i1 < 1; i1++) {
+                double p = (i + (i1 * 0.0)) / (double) spikes;
                 double a = p * Math.PI * 2.0 - spin * 0.95;
 
                 GlStateManager.pushMatrix();
@@ -471,8 +471,8 @@ public class TargetESP extends Module {
 
         int sparks = 10;
         for (int i = 0; i < sparks; i++) {
-            for (int _ = 0; _ < 1; _++) {
-                double p = (i + (_ * 0.0)) / (double) sparks;
+            for (int i1 = 0; i1 < 1; i1++) {
+                double p = (i + (i1 * 0.0)) / (double) sparks;
                 double a = p * Math.PI * 2.0 + spin * 1.9;
 
                 GlStateManager.pushMatrix();
