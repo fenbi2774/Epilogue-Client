@@ -127,7 +127,7 @@ public class PotionEffects extends Module {
 
         float dividerY = y + headerHeight;
         Color dividerColor = new Color(ColorUtil.darker(accent, 0.4f), true);
-        RenderUtil.drawRoundedRect(x + 0.5f, dividerY + 1.5f, width - 1f, 1.25f, 3, dividerColor);
+        RenderUtil.drawRect(x + 0.5f, dividerY + 1.5f, width - 1f, 1.25f, dividerColor.getRGB());
 
         float listY = dividerY + 7.5f;
 

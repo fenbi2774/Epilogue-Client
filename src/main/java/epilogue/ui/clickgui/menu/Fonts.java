@@ -5,9 +5,11 @@ import epilogue.font.FontTransformer;
 import net.minecraft.client.Minecraft;
 
 import java.awt.Font;
+import java.util.Locale;
 
 public final class Fonts {
     private static final FontTransformer TRANSFORMER = FontTransformer.getInstance();
+    private static final Minecraft MC = Minecraft.getMinecraft();
     private static final Font FALLBACK_TINY = firstFont(
             TRANSFORMER.getFont("MicrosoftYaHei", 30f),
             TRANSFORMER.getFont("MicrosoftYaHei Bold", 30f)
@@ -74,6 +76,14 @@ public final class Fonts {
         return ICON;
     }
 
+    public static Font msyhSmall() {
+        return FALLBACK_SMALL;
+    }
+
+    public static Font msyhHeading() {
+        return FALLBACK_HEADING;
+    }
+
     private static Font firstFont(Font... fonts) {
         if (fonts == null) return null;
         for (Font f : fonts) {
@@ -105,6 +115,86 @@ public final class Fonts {
         } else {
             Minecraft.getMinecraft().fontRendererObj.drawString(text, (int) x, (int) y, color, false);
         }
+    }
+
+    public static void drawWithShadow(Font font, String text, float x, float y, int color) {
+        if (font != null) {
+            CustomFontRenderer.drawStringWithShadow(text, x, y, color, font);
+        } else {
+            Minecraft.getMinecraft().fontRendererObj.drawString(text, (int) x, (int) y, color, true);
+        }
+    }
+
+    public static void drawMCFormattedWithShadow(Font font, String text, float x, float y, int color) {
+        if (font == null) {
+            MC.fontRendererObj.drawString(text, (int) x, (int) y, color, true);
+            return;
+        }
+        if (text == null || text.isEmpty()) return;
+
+        int currentColor = color;
+        float xx = x;
+        StringBuilder segment = new StringBuilder();
+
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            if (c == '§' && i + 1 < text.length()) {
+                if (segment.length() > 0) {
+                    String seg = segment.toString();
+                    CustomFontRenderer.drawStringWithShadow(seg, xx, y, currentColor, font);
+                    xx += CustomFontRenderer.getStringWidth(seg, font);
+                    segment.setLength(0);
+                }
+                char code = Character.toLowerCase(text.charAt(i + 1));
+                Integer rgb = mcColorCodeToRGB(code);
+                if (rgb != null) {
+                    currentColor = 0xFF000000 | rgb;
+                } else if (code == 'r') {
+                    currentColor = color;
+                }
+                i++;
+                continue;
+            }
+            segment.append(c);
+        }
+
+        if (segment.length() > 0) {
+            CustomFontRenderer.drawStringWithShadow(segment.toString(), xx, y, currentColor, font);
+        }
+    }
+
+    public static int widthMCFormatted(Font font, String text) {
+        if (font == null) {
+            return MC.fontRendererObj.getStringWidth(text);
+        }
+        if (text == null || text.isEmpty()) return 0;
+        int w = 0;
+        StringBuilder segment = new StringBuilder();
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            if (c == '§' && i + 1 < text.length()) {
+                if (segment.length() > 0) {
+                    w += CustomFontRenderer.getStringWidth(segment.toString(), font);
+                    segment.setLength(0);
+                }
+                i++;
+                continue;
+            }
+            segment.append(c);
+        }
+        if (segment.length() > 0) {
+            w += CustomFontRenderer.getStringWidth(segment.toString(), font);
+        }
+        return w;
+    }
+
+    private static Integer mcColorCodeToRGB(char code) {
+        String codes = "0123456789abcdef";
+        int idx = codes.indexOf(code);
+        if (idx >= 0) {
+            return MC.fontRendererObj.getColorCode(code);
+        }
+        return null;
     }
 
     public static int width(Font font, String text) {
