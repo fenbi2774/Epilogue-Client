@@ -2,7 +2,6 @@ package epilogue.ui.clickgui.dropdown.components;
 
 import epilogue.Epilogue;
 import epilogue.module.Module;
-import epilogue.ui.clickgui.dropdown.components.settings.TextComponent;
 import epilogue.ui.clickgui.dropdown.utils.DropdownFontRenderer;
 import epilogue.util.render.ColorUtil;
 import epilogue.util.render.RenderUtil;
@@ -62,9 +61,6 @@ public class ModuleRect {
                 }
                 if (value instanceof ColorValue) {
                     settingComponents.add(new ColorComponent((ColorValue) value));
-                }
-                if (value instanceof TextValue) {
-                    settingComponents.add(new TextComponent((TextValue) value));
                 }
             }
         }
