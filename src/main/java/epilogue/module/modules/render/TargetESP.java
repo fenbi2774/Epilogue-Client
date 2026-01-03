@@ -66,7 +66,7 @@ public class TargetESP extends Module {
     private ResourceLocation customImage = null;
     private long lastHurtTime = 0;
     private static final long HURT_DURATION = 500;
-    
+
     private EntityLivingBase target;
     private final TimerUtil displayTimer = new TimerUtil();
     private final TimerUtil animTimer = new TimerUtil();
@@ -81,18 +81,18 @@ public class TargetESP extends Module {
     private final ResourceLocation aim = new ResourceLocation("minecraft", "epilogue/texture/targetesp/shenmi.png");
     public double prevCircleStep;
     public double circleStep;
-    
+
     public TargetESP() {
         super("TargetESP", false);
     }
-    
+
     private void selectCustomImage() {
         new Thread(() -> {
             FileDialog fileDialog = new FileDialog((Frame)null, "Select Custom Image", FileDialog.LOAD);
             fileDialog.setFile("*.png");
             fileDialog.setFilenameFilter((dir, name) -> name.toLowerCase().endsWith(".png"));
             fileDialog.setVisible(true);
-            
+
             String file = fileDialog.getFile();
             if (file != null) {
                 String directory = fileDialog.getDirectory();
@@ -112,12 +112,12 @@ public class TargetESP extends Module {
             }
         }, "Image Selector Thread").start();
     }
-    
+
     private Color getInterfaceColor() {
         Interface interfaceModule = (Interface) Epilogue.moduleManager.getModule("Interface");
         return new Color(interfaceModule.color());
     }
-    
+
     @Override
     public void onEnabled() {
         target = null;
@@ -129,13 +129,13 @@ public class TargetESP extends Module {
         prevCircleStep = 0;
         circleStep = 0;
     }
-    
-    @Override 
+
+    @Override
     public void onDisabled() {
         target = null;
         alphaAnim.reset();
     }
-    
+
     @EventTarget
     public void onPacket(PacketEvent event) {
         if (event.getType() == EventType.SEND && event.getPacket() instanceof C02PacketUseEntity) {
@@ -150,8 +150,8 @@ public class TargetESP extends Module {
                 return;
             }
             Entity entity = packet.getEntityFromWorld(mc.theWorld);
-            if (entity instanceof EntityLivingBase && 
-                (!onlyPlayer.getValue() || entity instanceof EntityPlayer)) {
+            if (entity instanceof EntityLivingBase &&
+                    (!onlyPlayer.getValue() || entity instanceof EntityPlayer)) {
                 EntityLivingBase newTarget = (EntityLivingBase) entity;
                 if (target != newTarget) {
                     target = newTarget;
@@ -176,10 +176,10 @@ public class TargetESP extends Module {
 
     private float getHurtAlpha() {
         if (!showHurt.getValue()) return 0.0f;
-        
+
         long timeSinceHurt = System.currentTimeMillis() - lastHurtTime;
         if (timeSinceHurt > HURT_DURATION) return 0.0f;
-        
+
         float progress = (float) timeSinceHurt / HURT_DURATION;
         if (progress < 0.5f) {
             return progress * 2.0f;
@@ -187,7 +187,7 @@ public class TargetESP extends Module {
             return 2.0f - (progress * 2.0f);
         }
     }
-    
+
     private float getAlpha() {
         if (target == null) return 0.0f;
 
@@ -241,7 +241,7 @@ public class TargetESP extends Module {
 
                 GL11.glRotated(-idk[0], 0.0, 1.0, 0.0);
                 GL11.glRotated(idk[1], 1.0, 0.0, 0.0);
-                
+
                 for (int i = 0; i < lenght; i++) {
                     double angle = 0.15f * (System.currentTimeMillis() - lastTime - (i * distance)) / (speed);
                     double s = Math.sin(angle) * radius;
@@ -377,11 +377,9 @@ public class TargetESP extends Module {
 
     private void ghost2(Render3DEvent event) {
         if (target == null) return;
-
         float partialTicks = event.getPartialTicks();
         Vec3 interpolated = MathUtil.interpolate(new Vec3(target.lastTickPosX, target.lastTickPosY, target.lastTickPosZ), target.getPositionVector(), partialTicks);
         interpolated = new Vec3(interpolated.xCoord, interpolated.yCoord + 0.9f, interpolated.zCoord);
-
         GlStateManager.pushMatrix();
         GlStateManager.disableLighting();
         GlStateManager.depthMask(false);
@@ -390,106 +388,41 @@ public class TargetESP extends Module {
         GlStateManager.disableCull();
         GlStateManager.disableAlpha();
         GlStateManager.tryBlendFuncSeparate(770, 1, 0, 1);
-
         RenderUtil.setupOrientationMatrix(interpolated.xCoord, interpolated.yCoord, interpolated.zCoord);
-
         float[] view = new float[]{mc.getRenderManager().playerViewY, mc.getRenderManager().playerViewX};
         GL11.glRotated(-view[0], 0.0, 1.0, 0.0);
         GL11.glRotated(view[1], 1.0, 0.0, 0.0);
 
-        long now = System.currentTimeMillis();
-        double t = (now - lastTime) / 1000.0;
-        float alpha = getAlpha();
-        int baseColor = ColorUtil.applyOpacity(getInterfaceColor(), alpha).getRGB();
-
-        double breathe = 0.5 + 0.5 * Math.sin(t * 1.35);
-        double spin = t * (1.2 + 0.8 * breathe);
-
-        double inOut = (((((Math.sin(t) + 1.0) * 0.5) < 0.68) ? (Math.pow((((Math.sin(t) + 1.0) * 0.5) / 0.68), 3.6) * 0.70) : (0.70 + (1.0 - 0.70) * (1.0 - Math.pow(1.0 - (((Math.sin(t) + 1.0) * 0.5) - 0.68) / 0.32, 1.12)))) - 0.5) * 2.0;
-        double inOut2 = ((((Math.sin(t + Math.PI / 2.0) + 1.0) * 0.5) * ((Math.sin(t + Math.PI / 2.0) + 1.0) * 0.5) * (3.0 - 2.0 * ((Math.sin(t + Math.PI / 2.0) + 1.0) * 0.5))) - 0.5) * 2.0;
-        double baseRadius = 0.22 + (0.5 + 0.5 * Math.sin(t * 1.35)) * 0.28;
-        double heightAmp = 0.45 + (0.5 + 0.5 * Math.sin(t * 1.05)) * 0.35;
-
-        int layers = 1;
-        int pointsPerLayer = 28;
-
-        for (int layer = 0; layer < layers; layer++) {
-            for (int i = 0; i < pointsPerLayer; i++) {
-                for (int i1 = 0; i1 < 1; i1++) {
-                    double p = (i + (i1 * 0.0)) / (double) pointsPerLayer;
-                    double a = (p * Math.PI * 2.0) + (spin * 1.25);
-
-                    double x = Math.cos(a) * ((target.width * 0.56) + baseRadius * 0.78 + (0.26 + baseRadius * 0.38) * inOut);
-                    double z = Math.sin(a) * ((target.width * 0.56) + baseRadius * 0.78 + (0.26 + baseRadius * 0.38) * inOut);
-
-                    GlStateManager.pushMatrix();
-                    GlStateManager.translate(
-                            x + Math.cos(a + Math.PI / 2.0) * (Math.sin(t * 1.7 + p * Math.PI * 2.0) * 0.06),
-                            ((0.44 + 0.08 * Math.sin(t * 1.2)) * inOut + 0.06 * inOut2)
-                                    + (Math.sin(a * 2.0 + t * 2.2) * 0.05)
-                                    + Math.sin(t * 2.2 + p * Math.PI * 2.0) * heightAmp * 0.12,
-                            z + Math.sin(a + Math.PI / 2.0) * (Math.sin(t * 1.7 + p * Math.PI * 2.0) * 0.06)
-                    );
-                    GlStateManager.rotate((float) (t * 180.0 + i * 12.0 + layer * 60.0), 0, 0, 1);
-                    RenderUtil.drawImage(
-                            glowCircle,
-                            0f,
-                            0f,
-                            -(float) ((0.16 + 0.06 * (1.0 - p)) * (0.86 + 0.24 * Math.sin(t * 2.6 + i * 0.45) + 0.14 * ((inOut * 0.5) + 0.5))),
-                            -(float) ((0.16 + 0.06 * (1.0 - p)) * (0.86 + 0.24 * Math.sin(t * 2.6 + i * 0.45) + 0.14 * ((inOut * 0.5) + 0.5))),
-                            baseColor
-                    );
-                    GlStateManager.popMatrix();
-                }
-            }
-        }
-
-        int spikes = 10;
-        for (int i = 0; i < spikes; i++) {
-            for (int i1 = 0; i1 < 1; i1++) {
-                double p = (i + (i1 * 0.0)) / (double) spikes;
-                double a = p * Math.PI * 2.0 - spin * 0.95;
-
+        for (int gi = 0; gi < ((28) + 10 + 10); gi++) {
+            if (gi < (28)) {
+                int layer = 0;
+                int i = gi % 28;
+                double p = (i + (0.0)) / (double) 28;
+                double a = (p * Math.PI * 2.0) + ((((System.currentTimeMillis() - lastTime) / 1000.0) * (1.2 + 0.8 * (0.5 + 0.5 * Math.sin(((System.currentTimeMillis() - lastTime) / 1000.0) * 1.35)))) * 1.25);
+                double x = Math.cos(a) * ((target.width * 0.56) + (0.22 + (0.5 + 0.5 * Math.sin(((System.currentTimeMillis() - lastTime) / 1000.0) * 1.35)) * 0.28) * 0.78 + (0.26 + (0.22 + (0.5 + 0.5 * Math.sin(((System.currentTimeMillis() - lastTime) / 1000.0) * 1.35)) * 0.28) * 0.38) * ((((((Math.sin(((System.currentTimeMillis() - lastTime) / 1000.0)) + 1.0) * 0.5) < 0.68) ? (Math.pow((((Math.sin(((System.currentTimeMillis() - lastTime) / 1000.0)) + 1.0) * 0.5) / 0.68), 3.6) * 0.70) : (0.70 + (1.0 - 0.70) * (1.0 - Math.pow(1.0 - (((Math.sin(((System.currentTimeMillis() - lastTime) / 1000.0)) + 1.0) * 0.5) - 0.68) / 0.32, 1.12)))) - 0.5) * 2.0));
+                double z = Math.sin(a) * ((target.width * 0.56) + (0.22 + (0.5 + 0.5 * Math.sin(((System.currentTimeMillis() - lastTime) / 1000.0) * 1.35)) * 0.28) * 0.78 + (0.26 + (0.22 + (0.5 + 0.5 * Math.sin(((System.currentTimeMillis() - lastTime) / 1000.0) * 1.35)) * 0.28) * 0.38) * ((((((Math.sin(((System.currentTimeMillis() - lastTime) / 1000.0)) + 1.0) * 0.5) < 0.68) ? (Math.pow((((Math.sin(((System.currentTimeMillis() - lastTime) / 1000.0)) + 1.0) * 0.5) / 0.68), 3.6) * 0.70) : (0.70 + (1.0 - 0.70) * (1.0 - Math.pow(1.0 - (((Math.sin(((System.currentTimeMillis() - lastTime) / 1000.0)) + 1.0) * 0.5) - 0.68) / 0.32, 1.12)))) - 0.5) * 2.0));
                 GlStateManager.pushMatrix();
-                GlStateManager.translate(
-                        Math.cos(a) * ((target.width * 0.86 + 0.20) + 0.10 * Math.sin(t * 2.0 + i) - (0.18 + baseRadius * 0.25) * inOut),
-                        (-(0.44 + 0.08 * Math.sin(t * 1.2)) * inOut - 0.06 * inOut2 + Math.sin(t * 2.0 + i * 0.70) * 0.10),
-                        Math.sin(a) * ((target.width * 0.86 + 0.20) + 0.10 * Math.sin(t * 2.0 + i) - (0.18 + baseRadius * 0.25) * inOut)
-                );
-                GlStateManager.rotate((float) (t * 320.0 + i * 30.0), 0, 0, 1);
-                RenderUtil.drawImage(
-                        glowCircle,
-                        0f,
-                        0f,
-                        -(float) (0.17 + 0.06 * (0.5 + 0.5 * Math.sin(t * 3.0 + i)) + 0.05 * (1.0 - ((inOut * 0.5) + 0.5))),
-                        -(float) (0.17 + 0.06 * (0.5 + 0.5 * Math.sin(t * 3.0 + i)) + 0.05 * (1.0 - ((inOut * 0.5) + 0.5))),
-                        baseColor
-                );
+                GlStateManager.translate(x + Math.cos(a + Math.PI / 2.0) * (Math.sin(((System.currentTimeMillis() - lastTime) / 1000.0) * 1.7 + p * Math.PI * 2.0) * 0.06), ((0.44 + 0.08 * Math.sin(((System.currentTimeMillis() - lastTime) / 1000.0) * 1.2)) * ((((((Math.sin(((System.currentTimeMillis() - lastTime) / 1000.0)) + 1.0) * 0.5) < 0.68) ? (Math.pow((((Math.sin(((System.currentTimeMillis() - lastTime) / 1000.0)) + 1.0) * 0.5) / 0.68), 3.6) * 0.70) : (0.70 + (1.0 - 0.70) * (1.0 - Math.pow(1.0 - (((Math.sin(((System.currentTimeMillis() - lastTime) / 1000.0)) + 1.0) * 0.5) - 0.68) / 0.32, 1.12)))) - 0.5) * 2.0) + 0.06 * (((((Math.sin(((System.currentTimeMillis() - lastTime) / 1000.0) + Math.PI / 2.0) + 1.0) * 0.5) * ((Math.sin(((System.currentTimeMillis() - lastTime) / 1000.0) + Math.PI / 2.0) + 1.0) * 0.5) * (3.0 - 2.0 * ((Math.sin(((System.currentTimeMillis() - lastTime) / 1000.0) + Math.PI / 2.0) + 1.0) * 0.5))) - 0.5) * 2.0)) + (Math.sin(a * 2.0 + ((System.currentTimeMillis() - lastTime) / 1000.0) * 2.2) * 0.05) + Math.sin(((System.currentTimeMillis() - lastTime) / 1000.0) * 2.2 + p * Math.PI * 2.0) * (0.45 + (0.5 + 0.5 * Math.sin(((System.currentTimeMillis() - lastTime) / 1000.0) * 1.05)) * 0.35) * 0.12, z + Math.sin(a + Math.PI / 2.0) * (Math.sin(((System.currentTimeMillis() - lastTime) / 1000.0) * 1.7 + p * Math.PI * 2.0) * 0.06));
+                GlStateManager.rotate((float) (((System.currentTimeMillis() - lastTime) / 1000.0) * 180.0 + i * 12.0 + layer * 60.0), 0, 0, 1);
+                RenderUtil.drawImage(glowCircle, 0f, 0f, -(float) ((0.16 + 0.06 * (1.0 - p)) * (0.86 + 0.24 * Math.sin(((System.currentTimeMillis() - lastTime) / 1000.0) * 2.6 + i * 0.45) + 0.14 * ((((((((Math.sin(((System.currentTimeMillis() - lastTime) / 1000.0)) + 1.0) * 0.5) < 0.68) ? (Math.pow((((Math.sin(((System.currentTimeMillis() - lastTime) / 1000.0)) + 1.0) * 0.5) / 0.68), 3.6) * 0.70) : (0.70 + (1.0 - 0.70) * (1.0 - Math.pow(1.0 - (((Math.sin(((System.currentTimeMillis() - lastTime) / 1000.0)) + 1.0) * 0.5) - 0.68) / 0.32, 1.12)))) - 0.5) * 2.0) * 0.5) + 0.5))), -(float) ((0.16 + 0.06 * (1.0 - p)) * (0.86 + 0.24 * Math.sin(((System.currentTimeMillis() - lastTime) / 1000.0) * 2.6 + i * 0.45) + 0.14 * ((((((((Math.sin(((System.currentTimeMillis() - lastTime) / 1000.0)) + 1.0) * 0.5) < 0.68) ? (Math.pow((((Math.sin(((System.currentTimeMillis() - lastTime) / 1000.0)) + 1.0) * 0.5) / 0.68), 3.6) * 0.70) : (0.70 + (1.0 - 0.70) * (1.0 - Math.pow(1.0 - (((Math.sin(((System.currentTimeMillis() - lastTime) / 1000.0)) + 1.0) * 0.5) - 0.68) / 0.32, 1.12)))) - 0.5) * 2.0) * 0.5) + 0.5))), ColorUtil.applyOpacity(getInterfaceColor(), getAlpha()).getRGB());
                 GlStateManager.popMatrix();
-            }
-        }
-
-        int sparks = 10;
-        for (int i = 0; i < sparks; i++) {
-            for (int i1 = 0; i1 < 1; i1++) {
-                double p = (i + (i1 * 0.0)) / (double) sparks;
-                double a = p * Math.PI * 2.0 + spin * 1.9;
-
+            } else if (gi < (28) + 10) {
+                int i = gi - (28);
+                double p = (i + (0.0)) / (double) 10;
+                double a = p * Math.PI * 2.0 - (((System.currentTimeMillis() - lastTime) / 1000.0) * (1.2 + 0.8 * (0.5 + 0.5 * Math.sin(((System.currentTimeMillis() - lastTime) / 1000.0) * 1.35)))) * 0.95;
                 GlStateManager.pushMatrix();
-                GlStateManager.translate(
-                        Math.cos(a) * ((target.width * 0.62 + 0.12) + 0.12 * Math.sin(t * 1.8 + i)),
-                        (Math.sin(t * 2.6 + i) * 0.16) + (Math.cos(t * 2.0 + i * 0.7) * 0.12),
-                        Math.sin(a) * ((target.width * 0.62 + 0.12) + 0.12 * Math.sin(t * 1.8 + i))
-                );
-                GlStateManager.rotate((float) (t * 420.0 + i * 40.0), 0, 0, 1);
-                RenderUtil.drawImage(
-                        glowCircle,
-                        0f,
-                        0f,
-                        -(float) (0.09 + 0.05 * (0.5 + 0.5 * Math.sin(t * 4.2 + i * 1.3))),
-                        -(float) (0.09 + 0.05 * (0.5 + 0.5 * Math.sin(t * 4.2 + i * 1.3))),
-                        ColorUtil.applyOpacity(getInterfaceColor(), (float) (alpha * (0.35 + 0.65 * (0.5 + 0.5 * Math.sin(t * 5.0 + i * 2.2))))).getRGB()
-                );
+                GlStateManager.translate(Math.cos(a) * ((target.width * 0.86 + 0.20) + 0.10 * Math.sin(((System.currentTimeMillis() - lastTime) / 1000.0) * 2.0 + i) - (0.18 + (0.22 + (0.5 + 0.5 * Math.sin(((System.currentTimeMillis() - lastTime) / 1000.0) * 1.35)) * 0.28) * 0.25) * ((((((Math.sin(((System.currentTimeMillis() - lastTime) / 1000.0)) + 1.0) * 0.5) < 0.68) ? (Math.pow((((Math.sin(((System.currentTimeMillis() - lastTime) / 1000.0)) + 1.0) * 0.5) / 0.68), 3.6) * 0.70) : (0.70 + (1.0 - 0.70) * (1.0 - Math.pow(1.0 - (((Math.sin(((System.currentTimeMillis() - lastTime) / 1000.0)) + 1.0) * 0.5) - 0.68) / 0.32, 1.12)))) - 0.5) * 2.0)), (-(0.44 + 0.08 * Math.sin(((System.currentTimeMillis() - lastTime) / 1000.0) * 1.2)) * ((((((Math.sin(((System.currentTimeMillis() - lastTime) / 1000.0)) + 1.0) * 0.5) < 0.68) ? (Math.pow((((Math.sin(((System.currentTimeMillis() - lastTime) / 1000.0)) + 1.0) * 0.5) / 0.68), 3.6) * 0.70) : (0.70 + (1.0 - 0.70) * (1.0 - Math.pow(1.0 - (((Math.sin(((System.currentTimeMillis() - lastTime) / 1000.0)) + 1.0) * 0.5) - 0.68) / 0.32, 1.12)))) - 0.5) * 2.0) - 0.06 * (((((Math.sin(((System.currentTimeMillis() - lastTime) / 1000.0) + Math.PI / 2.0) + 1.0) * 0.5) * ((Math.sin(((System.currentTimeMillis() - lastTime) / 1000.0) + Math.PI / 2.0) + 1.0) * 0.5) * (3.0 - 2.0 * ((Math.sin(((System.currentTimeMillis() - lastTime) / 1000.0) + Math.PI / 2.0) + 1.0) * 0.5))) - 0.5) * 2.0) + Math.sin(((System.currentTimeMillis() - lastTime) / 1000.0) * 2.0 + i * 0.70) * 0.10), Math.sin(a) * ((target.width * 0.86 + 0.20) + 0.10 * Math.sin(((System.currentTimeMillis() - lastTime) / 1000.0) * 2.0 + i) - (0.18 + (0.22 + (0.5 + 0.5 * Math.sin(((System.currentTimeMillis() - lastTime) / 1000.0) * 1.35)) * 0.28) * 0.25) * ((((((Math.sin(((System.currentTimeMillis() - lastTime) / 1000.0)) + 1.0) * 0.5) < 0.68) ? (Math.pow((((Math.sin(((System.currentTimeMillis() - lastTime) / 1000.0)) + 1.0) * 0.5) / 0.68), 3.6) * 0.70) : (0.70 + (1.0 - 0.70) * (1.0 - Math.pow(1.0 - (((Math.sin(((System.currentTimeMillis() - lastTime) / 1000.0)) + 1.0) * 0.5) - 0.68) / 0.32, 1.12)))) - 0.5) * 2.0)));
+                GlStateManager.rotate((float) (((System.currentTimeMillis() - lastTime) / 1000.0) * 320.0 + i * 30.0), 0, 0, 1);
+                RenderUtil.drawImage(glowCircle, 0f, 0f, -(float) (0.17 + 0.06 * (0.5 + 0.5 * Math.sin(((System.currentTimeMillis() - lastTime) / 1000.0) * 3.0 + i)) + 0.05 * (1.0 - ((((((((Math.sin(((System.currentTimeMillis() - lastTime) / 1000.0)) + 1.0) * 0.5) < 0.68) ? (Math.pow((((Math.sin(((System.currentTimeMillis() - lastTime) / 1000.0)) + 1.0) * 0.5) / 0.68), 3.6) * 0.70) : (0.70 + (1.0 - 0.70) * (1.0 - Math.pow(1.0 - (((Math.sin(((System.currentTimeMillis() - lastTime) / 1000.0)) + 1.0) * 0.5) - 0.68) / 0.32, 1.12)))) - 0.5) * 2.0) * 0.5) + 0.5))), -(float) (0.17 + 0.06 * (0.5 + 0.5 * Math.sin(((System.currentTimeMillis() - lastTime) / 1000.0) * 3.0 + i)) + 0.05 * (1.0 - ((((((((Math.sin(((System.currentTimeMillis() - lastTime) / 1000.0)) + 1.0) * 0.5) < 0.68) ? (Math.pow((((Math.sin(((System.currentTimeMillis() - lastTime) / 1000.0)) + 1.0) * 0.5) / 0.68), 3.6) * 0.70) : (0.70 + (1.0 - 0.70) * (1.0 - Math.pow(1.0 - (((Math.sin(((System.currentTimeMillis() - lastTime) / 1000.0)) + 1.0) * 0.5) - 0.68) / 0.32, 1.12)))) - 0.5) * 2.0) * 0.5) + 0.5))), ColorUtil.applyOpacity(getInterfaceColor(), getAlpha()).getRGB());
+                GlStateManager.popMatrix();
+            } else {
+                int i = gi - (28) - 10;
+                double p = (i + (0.0)) / (double) 10;
+                double a = p * Math.PI * 2.0 + (((System.currentTimeMillis() - lastTime) / 1000.0) * (1.2 + 0.8 * (0.5 + 0.5 * Math.sin(((System.currentTimeMillis() - lastTime) / 1000.0) * 1.35)))) * 1.9;
+                GlStateManager.pushMatrix();
+                GlStateManager.translate(Math.cos(a) * ((target.width * 0.62 + 0.12) + 0.12 * Math.sin(((System.currentTimeMillis() - lastTime) / 1000.0) * 1.8 + i)), (Math.sin(((System.currentTimeMillis() - lastTime) / 1000.0) * 2.6 + i) * 0.16) + (Math.cos(((System.currentTimeMillis() - lastTime) / 1000.0) * 2.0 + i * 0.7) * 0.12), Math.sin(a) * ((target.width * 0.62 + 0.12) + 0.12 * Math.sin(((System.currentTimeMillis() - lastTime) / 1000.0) * 1.8 + i)));
+                GlStateManager.rotate((float) (((System.currentTimeMillis() - lastTime) / 1000.0) * 420.0 + i * 40.0), 0, 0, 1);
+                RenderUtil.drawImage(glowCircle, 0f, 0f, -(float) (0.09 + 0.05 * (0.5 + 0.5 * Math.sin(((System.currentTimeMillis() - lastTime) / 1000.0) * 4.2 + i * 1.3))), -(float) (0.09 + 0.05 * (0.5 + 0.5 * Math.sin(((System.currentTimeMillis() - lastTime) / 1000.0) * 4.2 + i * 1.3))), ColorUtil.applyOpacity(getInterfaceColor(), (float) (getAlpha() * (0.35 + 0.65 * (0.5 + 0.5 * Math.sin(((System.currentTimeMillis() - lastTime) / 1000.0) * 5.0 + i * 2.2))))).getRGB());
                 GlStateManager.popMatrix();
             }
         }
@@ -539,7 +472,7 @@ public class TargetESP extends Module {
             float alpha = 0.5f * 1;
             float pl = 0;
             boolean fa = false;
-            
+
             for (int iteration = 0; iteration < 3; iteration++) {
                 for (float i = time * 360; i < time * 360 + 90; i += 2) {
                     float max = time * 360 + 90;
@@ -584,19 +517,19 @@ public class TargetESP extends Module {
         double scaled = useAnimation ? MathHelper.clamp_double((Math.sin(millis / 500.0) + 1.0) / 2.0, 0.8, 1.0) : 0.9;
         double rotate = useAnimation ? MathHelper.clamp_double((Math.sin(millis / 1000.0) + 1.0) / 2.0 * 360.0, 0.0, 360.0) : 0.0;
         rotate = (imageMode.getValue() == 1 ? 45 : 0) - (angle - 15.0) + rotate;
-        
+
         Color baseColor = getInterfaceColor();
         float hurtAlpha = getHurtAlpha();
-        
+
         Color hurtColor = new Color(255, 0, 0, 185);
         Color baseWithAlpha = ColorUtil.applyOpacity(baseColor, 1.0f);
         Color hurtWithAlpha = ColorUtil.applyOpacity(hurtColor, hurtAlpha);
-        
+
         int r = (int)(baseWithAlpha.getRed() * (1 - hurtAlpha) + hurtWithAlpha.getRed() * hurtAlpha);
         int g = (int)(baseWithAlpha.getGreen() * (1 - hurtAlpha) + hurtWithAlpha.getGreen() * hurtAlpha);
         int b = (int)(baseWithAlpha.getBlue() * (1 - hurtAlpha) + hurtWithAlpha.getBlue() * hurtAlpha);
         int a = (int)(baseWithAlpha.getAlpha() * (1 - hurtAlpha) + hurtWithAlpha.getAlpha() * hurtAlpha);
-        
+
         int color = new Color(r, g, b, a).getRGB();
         int color2 = color;
         int color3 = color;
@@ -609,7 +542,7 @@ public class TargetESP extends Module {
         float renderY = y - size / 2.0f;
         float x2 = renderX + size;
         float y2 = renderY + size;
-        
+
         GlStateManager.pushMatrix();
         GlStateManager.translate(x, y, 0);
         GlStateManager.rotate((float) rotate, 0, 0, 1);
