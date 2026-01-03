@@ -19,17 +19,8 @@ public class ColorComponent extends SettingComponent<ColorValue> {
     private final Animation openAnimation = new DecelerateAnimation(250, 1, Direction.BACKWARDS);
     public float realHeight = 1;
 
-    private float hue = 0;
-    private float saturation = 1;
-    private float brightness = 1;
-
     public ColorComponent(ColorValue colorValue) {
         super(colorValue);
-        Color color = new Color(colorValue.getValue());
-        float[] hsb = Color.RGBtoHSB(color.getRed(), color.getGreen(), color.getBlue(), null);
-        hue = hsb[0];
-        saturation = hsb[1];
-        brightness = hsb[2];
     }
 
     @Override
@@ -53,8 +44,12 @@ public class ColorComponent extends SettingComponent<ColorValue> {
     @Override
     public void drawScreen(int mouseX, int mouseY) {
         openAnimation.setDirection(opened ? Direction.FORWARDS : Direction.BACKWARDS);
-        
+
         ColorValue colorSetting = getSetting();
+
+        float hue = colorSetting.getHue();
+        float saturation = colorSetting.getSaturation();
+        float brightness = colorSetting.getBrightness();
 
         Color nameColor = ColorUtil.applyOpacity(textColor, alpha * 0.7f);
         DropdownFontRenderer.drawString(colorSetting.getName(), x + 5, y + 5, nameColor.getRGB(), 18);
@@ -88,26 +83,36 @@ public class ColorComponent extends SettingComponent<ColorValue> {
 
             if (gradientHeight > 2) {
                 if (draggingHue) {
-                    hue = Math.min(1, Math.max(0, (mouseX - gradientX) / gradientWidth));
+                    colorSetting.setHue(Math.min(1, Math.max(0, (mouseX - gradientX) / gradientWidth)));
+                    hue = colorSetting.getHue();
                 }
 
                 if (draggingPicker) {
-                    brightness = Math.min(1, Math.max(0, 1 - ((mouseY - gradientY) / gradientHeight)));
-                    saturation = Math.min(1, Math.max(0, (mouseX - gradientX) / gradientWidth));
+                    colorSetting.setBrightness(Math.min(1, Math.max(0, 1 - ((mouseY - gradientY) / gradientHeight))));
+                    colorSetting.setSaturation(Math.min(1, Math.max(0, (mouseX - gradientX) / gradientWidth)));
+                    brightness = colorSetting.getBrightness();
+                    saturation = colorSetting.getSaturation();
                 }
 
-                Color firstColor = ColorUtil.applyOpacity(Color.getHSBColor(hue, 1, 1), alpha);
-                net.minecraft.client.gui.Gui.drawRect((int)gradientX, (int)gradientY, (int)(gradientX + gradientWidth), (int)(gradientY + gradientHeight), firstColor.getRGB());
-
-                Color secondColor = Color.getHSBColor(hue, 0, 1);
-                RoundedUtil.drawGradientHorizontal(gradientX, gradientY, gradientWidth, gradientHeight, 0, 
-                    ColorUtil.applyOpacity(secondColor, alpha), 
-                    ColorUtil.applyOpacity(new Color(secondColor.getRed(), secondColor.getGreen(), secondColor.getBlue(), 0), alpha));
-
-                Color thirdColor = Color.getHSBColor(hue, 1, 0);
-                RoundedUtil.drawGradientVertical(gradientX, gradientY, gradientWidth, gradientHeight, 0, 
-                    ColorUtil.applyOpacity(new Color(thirdColor.getRed(), thirdColor.getGreen(), thirdColor.getBlue(), 0), alpha), 
-                    ColorUtil.applyOpacity(thirdColor, alpha));
+                Color hueColor = Color.getHSBColor(hue, 1, 1);
+                RoundedUtil.drawGradientHorizontal(
+                        gradientX,
+                        gradientY,
+                        gradientWidth,
+                        gradientHeight,
+                        0,
+                        ColorUtil.applyOpacity(Color.WHITE, alpha),
+                        ColorUtil.applyOpacity(hueColor, alpha)
+                );
+                RoundedUtil.drawGradientVertical(
+                        gradientX,
+                        gradientY,
+                        gradientWidth,
+                        gradientHeight,
+                        0,
+                        new Color(0, 0, 0, 0),
+                        ColorUtil.applyOpacity(Color.BLACK, alpha)
+                );
 
                 float pickerY = gradientY + (gradientHeight * (1 - brightness));
                 float pickerX = gradientX + (gradientWidth * saturation);
@@ -129,10 +134,8 @@ public class ColorComponent extends SettingComponent<ColorValue> {
                     float miniSize = 5f;
                     float movement = (sliderSize / 2f - miniSize / 2f);
                     net.minecraft.client.gui.Gui.drawRect((int)(sliderX + movement), (int)(hueY + (((actualHueHeight / 2f) - miniSize / 2f))), (int)(sliderX + movement + miniSize), (int)(hueY + (((actualHueHeight / 2f) + miniSize / 2f))), 
-                        ColorUtil.applyOpacity(firstColor, alpha).getRGB());
+                        ColorUtil.applyOpacity(hueColor, alpha).getRGB());
                 }
-
-                applyValueChange(Color.HSBtoRGB(hue, saturation, brightness));
             }
         }
     }

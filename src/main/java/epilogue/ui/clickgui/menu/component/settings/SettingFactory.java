@@ -33,6 +33,8 @@ public final class SettingFactory {
                 out.add(new ModeComponent((ModeValue) v));
             } else if (v instanceof ColorValue) {
                 out.add(new ColorComponent((ColorValue) v));
+            } else if (v instanceof TextValue) {
+                out.add(new TextComponent((TextValue) v));
             }
         }
 
