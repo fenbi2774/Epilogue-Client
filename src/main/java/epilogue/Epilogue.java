@@ -148,7 +148,6 @@ public class Epilogue {
         moduleManager.modules.put(Trajectories.class, new Trajectories());
         moduleManager.modules.put(MusicLyrics.class, new MusicLyrics());
         moduleManager.modules.put(Velocity.class, new Velocity());
-        moduleManager.modules.put(Velocity2.class, new Velocity2());
         moduleManager.modules.put(ViewClip.class, new ViewClip());
         moduleManager.modules.put(WaterMark.class, new WaterMark());
         moduleManager.modules.put(WorldTime.class, new WorldTime());

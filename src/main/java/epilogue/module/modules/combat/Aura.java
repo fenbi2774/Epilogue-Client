@@ -498,13 +498,7 @@ public class Aura extends Module {
                 this.target = null;
             }
 
-            Velocity velocity = (Velocity) Epilogue.moduleManager.modules.get(Velocity.class);
-            boolean forceFakeAb = velocity != null
-                    && velocity.isEnabled()
-                    && velocity.mode.getValue() == 2
-                    && velocity.mixReduce.getValue()
-                    && this.autoBlock.getValue() != 0
-                    && this.autoBlock.getValue() != 2;
+            boolean forceFakeAb = false;
 
             if (this.attackDelayMS > 0L) {
                 this.attackDelayMS -= 50L;
