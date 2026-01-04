@@ -215,17 +215,13 @@ public class Velocity extends Module {
 
                 reduceReceiving = true;
 
-                Entity target;
                 Aura aura = (Aura) Epilogue.moduleManager.modules.get(Aura.class);
-                if (aura != null && aura.isEnabled() && aura.getTarget() != null) {
-                    target = aura.getTarget();
-                } else {
-                    target = getNearestPlayerTarget();
+                if (aura != null && aura.isEnabled()) {
+                    aura.getTarget();
                 }
-                boolean rangeOk = (target == null) || (mc.thePlayer.getDistanceToEntity(target) > 3.2F);
                 boolean isBlocking = aura != null && aura.autoBlock.getValue() != 3 && aura.autoBlock.getValue() != 4 ? (aura.isPlayerBlocking() || aura.blockingState) : aura != null && aura.isBlocking();
                 boolean inBadPos = isInWeb(mc.thePlayer) || mc.thePlayer.isOnLadder() || mc.thePlayer.isInWater() || mc.thePlayer.isInLava();
-                if (reduceReceiving && reduceTicksSinceTeleport >= 3 && !inBadPos && !mc.thePlayer.isSwingInProgress && !isBlocking && rangeOk) {
+                if (reduceReceiving && reduceTicksSinceTeleport >= 3 && !inBadPos && !mc.thePlayer.isSwingInProgress && !isBlocking) {
                     reduceActive = true;
                     reduceVelocityTicks = 0;
                 }
