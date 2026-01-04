@@ -19,6 +19,7 @@ import epilogue.value.values.BooleanValue;
 
 import epilogue.util.*;
 import epilogue.value.values.*;
+import lombok.Getter;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.entity.EntityOtherPlayerMP;
 import net.minecraft.client.gui.inventory.GuiContainer;
@@ -113,15 +114,15 @@ public class Aura extends Module {
         return this.isBlocking ? (long) (1000.0F / this.autoBlockCPS.getValue()) : 1000L / RandomUtil.nextLong(this.minCPS.getValue(), this.maxCPS.getValue());
     }
 
-    private Rotation clampStep(Rotation base, Rotation desired, float maxYawStep, float maxPitchStep) {
+    private Rotation clampStep(Rotation base, Rotation desired) {
         if (base == null || desired == null) {
             return desired;
         }
         float yawDiff = RotationUtils.getAngleDiff(base.yaw, desired.yaw);
         float pitchDiff = RotationUtils.getAngleDiff(base.pitch, desired.pitch);
 
-        float yawChange = RotationUtils.clamp(RotationUtils.abs(yawDiff), 0f, maxYawStep);
-        float pitchChange = RotationUtils.clamp(RotationUtils.abs(pitchDiff), 0f, maxPitchStep);
+        float yawChange = RotationUtils.clamp(RotationUtils.abs(yawDiff), 0f, Aura.SIM_MAX_YAW_STEP);
+        float pitchChange = RotationUtils.clamp(RotationUtils.abs(pitchDiff), 0f, Aura.SIM_MAX_PITCH_STEP);
 
         float nextYaw = base.yaw;
         float nextPitch = base.pitch;
@@ -158,17 +159,9 @@ public class Aura extends Module {
             return targetRot;
         }
 
-        float minS = SMOOTH_BACK_MIN_SPEED;
-        float maxS = SMOOTH_BACK_MAX_SPEED;
-        if (maxS < minS) {
-            float tmp = minS;
-            minS = maxS;
-            maxS = tmp;
-        }
-
         float t = RotationUtils.clamp(diffMag / 180f, 0f, 1f);
         float eased = (float) Math.sin(t * (Math.PI / 2.0));
-        float stepBase = minS + (maxS - minS) * eased;
+        float stepBase = SMOOTH_BACK_MIN_SPEED + (SMOOTH_BACK_MAX_SPEED - SMOOTH_BACK_MIN_SPEED) * eased;
 
         if (++smoothBackNoiseTick >= 2) {
             smoothBackNoiseTick = 0;
@@ -215,7 +208,7 @@ public class Aura extends Module {
                 if (!swingBlocked) {
                     mc.thePlayer.swingItem();
                 }
-                if ((this.rotations.getValue() != 0 || !this.isBoxInAttackRange(this.target.getBox()))
+                if ((this.rotations.getValue() != 0 || this.isBoxInAttackRange(this.target.getBox()))
                         && RotationUtil.rayTrace(this.target.getBox(), yaw, pitch, this.attackRange.getValue()) == null) {
                     return false;
                 } else {
@@ -387,7 +380,7 @@ public class Aura extends Module {
     }
 
     private boolean isBoxInAttackRange(AxisAlignedBB axisAlignedBB) {
-        return RotationUtil.distanceToBox(axisAlignedBB) <= (double) this.attackRange.getValue();
+        return !(RotationUtil.distanceToBox(axisAlignedBB) <= (double) this.attackRange.getValue());
     }
 
     private boolean isPlayerTarget(EntityLivingBase entityLivingBase) {
@@ -498,8 +491,6 @@ public class Aura extends Module {
                 this.target = null;
             }
 
-            boolean forceFakeAb = false;
-
             if (this.attackDelayMS > 0L) {
                 this.attackDelayMS -= 50L;
             }
@@ -509,7 +500,7 @@ public class Aura extends Module {
             if (!block) {
                 Epilogue.blinkManager.setBlinkState(false, BlinkModules.AUTO_BLOCK);
                 this.isBlocking = false;
-                this.fakeBlockState = forceFakeAb && this.hasValidTarget();
+                this.fakeBlockState = false;
                 this.blockTick = 0;
             }
             if (attack) {
@@ -541,12 +532,11 @@ public class Aura extends Module {
                                 }
                                 Epilogue.blinkManager.setBlinkState(false, BlinkModules.AUTO_BLOCK);
                                 this.isBlocking = true;
-                                this.fakeBlockState = false;
                             } else {
                                 Epilogue.blinkManager.setBlinkState(false, BlinkModules.AUTO_BLOCK);
                                 this.isBlocking = false;
-                                this.fakeBlockState = false;
                             }
+                            this.fakeBlockState = false;
                             break;
                         }
                         case 2: {
@@ -650,10 +640,6 @@ public class Aura extends Module {
                             this.fakeBlockState = false;
                         }
                     }
-
-                    if (forceFakeAb) {
-                        this.fakeBlockState |= this.hasValidTarget();
-                    }
                 }
                 boolean attacked = false;
                 if (this.isBoxInSwingRange(this.target.getBox())) {
@@ -683,7 +669,7 @@ public class Aura extends Module {
                         simRotationSystem.setFrictionAlgorithm("TimeIncremental");
                         Rotation base = new Rotation(event.getYaw(), event.getPitch());
                         Rotation next = simRotationSystem.compute(this.target.getEntity(), base);
-                        Rotation clamped = clampStep(base, next, SIM_MAX_YAW_STEP, SIM_MAX_PITCH_STEP);
+                        Rotation clamped = clampStep(base, next);
                         event.setRotation(clamped.yaw, clamped.pitch, 1);
                         if (this.moveFix.getValue() != 0) {
                             event.setPervRotation(event.getNewYaw(), 1);
@@ -752,7 +738,7 @@ public class Aura extends Module {
                     }
                     if (this.target == null
                             || !this.isValidTarget(this.target.getEntity())
-                            || !this.isBoxInAttackRange(this.target.getBox())
+                            || this.isBoxInAttackRange(this.target.getBox())
                             || !this.isBoxInSwingRange(this.target.getBox())
                             || this.timer.hasTimeElapsed(this.switchDelay.getValue().longValue())) {
 
@@ -936,13 +922,12 @@ public class Aura extends Module {
             this.smoothBackRotation = this.lastAuraRotation;
             this.smoothBackSpeedNoise = 0f;
             this.smoothBackNoiseTick = 0;
-            this.postTargetLostTicks = 0;
         } else {
             this.smoothBackActive = false;
             this.smoothBackTargetRotation = null;
             this.smoothBackRotation = null;
-            this.postTargetLostTicks = 0;
         }
+        this.postTargetLostTicks = 0;
     }
 
     @Override
@@ -984,12 +969,16 @@ public class Aura extends Module {
     }
 
     public static class AttackData {
+        @Getter
         private final EntityLivingBase entity;
+        @Getter
         private final AxisAlignedBB box;
+        @Getter
         private final double x;
+        @Getter
         private final double y;
+        @Getter
         private final double z;
-        public int hurtTime;
 
         public AttackData(EntityLivingBase entityLivingBase) {
             this.entity = entityLivingBase;
@@ -1000,25 +989,6 @@ public class Aura extends Module {
             this.z = entityLivingBase.posZ;
         }
 
-        public EntityLivingBase getEntity() {
-            return this.entity;
-        }
-
-        public AxisAlignedBB getBox() {
-            return this.box;
-        }
-
-        public double getX() {
-            return this.x;
-        }
-
-        public double getY() {
-            return this.y;
-        }
-
-        public double getZ() {
-            return this.z;
-        }
     }
 
     private void setNextSlot() {
@@ -1037,7 +1007,7 @@ public class Aura extends Module {
 
     private int getNextSlot() {
         int currentSlot = mc.thePlayer.inventory.currentItem;
-        int next = -1;
+        int next;
         if (currentSlot < 8) {
             next = currentSlot + 1;
         }
