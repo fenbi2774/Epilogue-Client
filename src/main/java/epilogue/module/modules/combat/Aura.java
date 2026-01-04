@@ -13,6 +13,7 @@ import epilogue.module.Module;
 import epilogue.module.modules.combat.rotation.OPRotationSystem;
 import epilogue.module.modules.combat.rotation.Rotation;
 import epilogue.module.modules.combat.rotation.RotationUtils;
+import epilogue.module.modules.movement.NoSlow;
 import epilogue.module.modules.player.Scaffold;
 import epilogue.module.modules.player.BedNuker;
 import epilogue.value.values.BooleanValue;
@@ -47,6 +48,7 @@ import net.minecraft.util.MovingObjectPosition.MovingObjectType;
 import net.minecraft.world.WorldSettings.GameType;
 
 import java.util.ArrayList;
+import java.util.Random;
 
 public class Aura extends Module {
     private static final Minecraft mc = Minecraft.getMinecraft();
@@ -398,7 +400,7 @@ public class Aura extends Module {
         this.smoothBack = new BooleanValue("Smooth Back", true, () -> this.rotations.getValue() == 4);
         this.fov = new IntValue("FOV", 360, 30, 360);
         this.autoBlock = new ModeValue(
-                "AutoBlock Mode", 4, new String[]{"NONE", "Vanilla", "Fake", "HypixelA", "HypixelB"}
+                "AutoBlock Mode", 4, new String[]{"NONE", "Vanilla", "Fake", "BlinkLess", "Prediction", "Safe"}
         );
         this.autoBlockRequirePress = new BooleanValue("AutoBlock Only Right Click", false, () -> this.autoBlock.getValue() != 0 && this.autoBlock.getValue() != 2);
         this.autoBlockCPS = new IntValue("AutoBlock CPS", 10, 1, 10);
@@ -637,6 +639,47 @@ public class Aura extends Module {
                             Epilogue.blinkManager.setBlinkState(false, BlinkModules.AUTO_BLOCK);
                             this.isBlocking = false;
                             this.fakeBlockState = false;
+                        }
+                        case 5: {
+                            if (this.hasValidTarget()) {
+                                if (!Epilogue.playerStateManager.digging && !Epilogue.playerStateManager.placing) {
+                                    switch (this.blockTick) {
+                                        case 0:
+                                            if (!this.isPlayerBlocking()) {
+                                                swap = true;
+                                            }
+                                            blocked = true;
+                                            this.blockTick = 1;
+                                            break;
+                                        case 1:
+                                            if (this.isPlayerBlocking()) {
+                                                if (Epilogue.moduleManager.modules.get(NoSlow.class).isEnabled()) {
+                                                    int randomSlot = new Random().nextInt(9);
+                                                    while (randomSlot == mc.thePlayer.inventory.currentItem) {
+                                                        randomSlot = new Random().nextInt(9);
+                                                    }
+                                                    PacketUtil.sendPacket(new C09PacketHeldItemChange(randomSlot));
+                                                    PacketUtil.sendPacket(new C09PacketHeldItemChange(mc.thePlayer.inventory.currentItem));
+                                                }
+                                                this.stopBlock();
+                                                attack = false;
+                                            }
+                                            if (this.attackDelayMS <= 50L) {
+                                                this.blockTick = 0;
+                                            }
+                                            break;
+                                        default:
+                                            this.blockTick = 0;
+                                    }
+                                }
+                                this.isBlocking = true;
+                                this.fakeBlockState = true;
+                            } else {
+                                Epilogue.blinkManager.setBlinkState(false, BlinkModules.AUTO_BLOCK);
+                                this.isBlocking = false;
+                                this.fakeBlockState = false;
+                            }
+                            break;
                         }
                     }
                 }
