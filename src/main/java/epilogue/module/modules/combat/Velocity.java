@@ -3,6 +3,7 @@ package epilogue.module.modules.combat;
 import com.google.common.base.CaseFormat;
 import epilogue.Epilogue;
 import epilogue.enums.DelayModules;
+import epilogue.util.ItemUtil;
 import epiloguemixinbridge.IAccessorEntity;
 import epilogue.util.MoveUtil;
 import epilogue.util.RotationUtil;
@@ -476,9 +477,15 @@ public class Velocity extends Module {
                 if (aura != null && aura.isEnabled()) {
 
                     if (mc.getNetHandler() != null) {
-                        mc.getNetHandler().addToSendQueue(
-                                new net.minecraft.network.play.client.C0APacketAnimation()
-                        );
+                        boolean canAttack;
+                        if (aura.autoBlock.getValue() == 3 || aura.autoBlock.getValue() == 4 || aura.autoBlock.getValue() == 5) {
+                            canAttack = (mc.thePlayer.isUsingItem() || aura.blockingState) && ItemUtil.isHoldingSword();
+                        } else {
+                            canAttack = true;
+                        }
+                        if (canAttack){
+                            mc.getNetHandler().addToSendQueue(new net.minecraft.network.play.client.C0APacketAnimation());
+                        }
                     }
 
                     if (mc.playerController != null) {
@@ -487,7 +494,7 @@ public class Velocity extends Module {
 
                     String motionXStr = df.format(mc.thePlayer.motionX);
                     String motionZStr = df.format(mc.thePlayer.motionZ);
-                    ChatUtil.sendRaw("§bBillionaire §fMotion X: " + motionXStr + " | Motion Z: " + motionZStr);
+                    ChatUtil.sendRaw("§bSB-Coffee §fMotion X: " + motionXStr + " | Motion Z: " + motionZStr);
                 }
             }
 
