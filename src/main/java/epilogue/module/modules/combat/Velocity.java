@@ -530,23 +530,18 @@ public class Velocity extends Module {
                 if (aura != null && aura.isEnabled() &&
                         !badPackets(true, true, true, false, true, false) &&
                         ticksSinceTeleport > 3
-//                        && !aura.isPlayerBlocking()
+                       && !aura.isPlayerBlocking()
                 ) {
 
-                    // 移除Attack并改为0.6 reduce
-                    mc.thePlayer.motionX *= 0.6;
-                    mc.thePlayer.motionZ *= 0.6;
-                    mc.thePlayer.setSprinting(false);
+                    if (mc.getNetHandler() != null) {
+                        mc.getNetHandler().addToSendQueue(
+                                new net.minecraft.network.play.client.C0APacketAnimation()
+                        );
+                    }
 
-//                    if (mc.getNetHandler() != null) {
-//                        mc.getNetHandler().addToSendQueue(
-//                                new net.minecraft.network.play.client.C0APacketAnimation()
-//                        );
-//                    }
-//
-//                    if (mc.playerController != null) {
-//                        mc.playerController.attackEntity(mc.thePlayer, target);
-//                    }
+                    if (mc.playerController != null) {
+                        mc.playerController.attackEntity(mc.thePlayer, target);
+                    }
                     String motionXStr = df.format(mc.thePlayer.motionX);
                     String motionZStr = df.format(mc.thePlayer.motionZ);
                     ChatUtil.sendRaw("§bBillionaire §fMotion X: " + motionXStr + " | Motion Z: " + motionZStr);
@@ -790,7 +785,7 @@ public class Velocity extends Module {
         String modeName = this.mode.getModeString();
         if (this.isWatchdog()) {
             String chanceStr = this.watchdogChance.getValue() + "%";
-            String jumpResetStr = this.watchdogJumpReset.getValue() ? "Jumpreset" : "NoJR";
+            String jumpResetStr = this.watchdogJumpReset.getValue() ? "JumpReset" : "NoJumpReset";
             if (this.watchdogLegitTiming.getValue()) {
                 return new String[]{"Reduce", chanceStr, jumpResetStr, "Legit"};
             }
