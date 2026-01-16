@@ -4,6 +4,7 @@ import epilogue.Epilogue;
 import epilogue.management.RotationState;
 import epilogue.module.modules.movement.TargetStrafe;
 import net.minecraft.client.Minecraft;
+import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.potion.Potion;
 import net.minecraft.util.BlockPos;
 import net.minecraft.util.MathHelper;
@@ -202,5 +203,13 @@ public class MoveUtil {
             MoveUtil.mc.thePlayer.movementInput.moveForward *= 0.3f;
             MoveUtil.mc.thePlayer.movementInput.moveStrafe *= 0.3f;
         }
+    }
+
+    public static boolean isMoving() {
+        return isMoving(mc.thePlayer);
+    }
+
+    public static boolean isMoving(EntityLivingBase entity) {
+        return entity != null && (entity.moveForward != 0.0F || entity.moveStrafing != 0.0F);
     }
 }
