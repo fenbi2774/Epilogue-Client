@@ -8,7 +8,6 @@ import epilogue.event.types.EventType;
 import epilogue.event.types.Priority;
 import epilogue.events.*;
 import epilogue.management.RotationState;
-import epiloguemixinbridge.IAccessorPlayerControllerMP;
 import epilogue.module.Module;
 import epilogue.module.modules.combat.rotation.OPRotationSystem;
 import epilogue.module.modules.combat.rotation.Rotation;
@@ -20,7 +19,7 @@ import epilogue.value.values.BooleanValue;
 
 import epilogue.util.*;
 import epilogue.value.values.*;
-import lombok.Getter;
+import epiloguemixinbridge.IAccessorPlayerControllerMP;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.entity.EntityOtherPlayerMP;
 import net.minecraft.client.gui.inventory.GuiContainer;
@@ -57,19 +56,9 @@ public class Aura extends Module {
     public static boolean swingBlocked = false;
     private static final float SIM_MAX_YAW_STEP = 45.0F;
     private static final float SIM_MAX_PITCH_STEP = 45.0F;
-    private static final float SMOOTH_BACK_MIN_SPEED = 3.9F;
-    private static final float SMOOTH_BACK_MAX_SPEED = 23.4F;
-    private static final float SMOOTH_BACK_NOISE = 0.35F;
     private final TimerUtil timer = new TimerUtil();
     private final OPRotationSystem simRotationSystem = new OPRotationSystem();
-    private Rotation lastAuraRotation = null;
-    private boolean smoothBackActive = false;
-    private Rotation cameraRotation = null;
-    private Rotation smoothBackTargetRotation = null;
-    private Rotation smoothBackRotation = null;
     private int postTargetLostTicks = 0;
-    private float smoothBackSpeedNoise = 0f;
-    private int smoothBackNoiseTick = 0;
     public AttackData target = null;
     private int switchTick = 0;
     private boolean hitRegistered = false;
@@ -95,7 +84,6 @@ public class Aura extends Module {
     public final ModeValue yaw;
     public final ModeValue pitch;
     public final ModeValue moveFix;
-    public final BooleanValue smoothBack;
     public final BooleanValue throughWalls;
     public final BooleanValue requirePress;
     public final BooleanValue allowMining;
@@ -139,56 +127,6 @@ public class Aura extends Module {
             nextPitch += pitchChange;
         } else if (pitchDiff < 0) {
             nextPitch -= pitchChange;
-        }
-
-        nextPitch = RotationUtils.clamp(nextPitch, -90f, 90f);
-        return new Rotation(nextYaw, nextPitch);
-    }
-
-    private Rotation smoothBackStep(Rotation base, Rotation targetRot) {
-        if (base == null || targetRot == null) {
-            return base;
-        }
-
-        float yawDiff = RotationUtils.getAngleDiff(base.yaw, targetRot.yaw);
-        float pitchDiff = RotationUtils.getAngleDiff(base.pitch, targetRot.pitch);
-
-        float absYaw = RotationUtils.abs(yawDiff);
-        float absPitch = RotationUtils.abs(pitchDiff);
-
-        float diffMag = Math.max(absYaw, absPitch);
-        if (diffMag < 1.0E-4f) {
-            return targetRot;
-        }
-
-        float t = RotationUtils.clamp(diffMag / 180f, 0f, 1f);
-        float eased = (float) Math.sin(t * (Math.PI / 2.0));
-        float stepBase = SMOOTH_BACK_MIN_SPEED + (SMOOTH_BACK_MAX_SPEED - SMOOTH_BACK_MIN_SPEED) * eased;
-        if (++smoothBackNoiseTick >= 2) {
-            smoothBackNoiseTick = 0;
-            float n = SMOOTH_BACK_NOISE;
-            smoothBackSpeedNoise = RotationUtils.randomFloat(-n, n);
-        }
-
-        stepBase *= (1.0f + smoothBackSpeedNoise);
-        stepBase = RotationUtils.clamp(stepBase, 0.1f, 180.0f);
-
-        float yawStep = RotationUtils.clamp(stepBase * (absYaw / diffMag), 0f, absYaw);
-        float pitchStep = RotationUtils.clamp(stepBase * (absPitch / diffMag), 0f, absPitch);
-
-        float nextYaw = base.yaw;
-        float nextPitch = base.pitch;
-
-        if (yawDiff > 0) {
-            nextYaw += yawStep;
-        } else if (yawDiff < 0) {
-            nextYaw -= yawStep;
-        }
-
-        if (pitchDiff > 0) {
-            nextPitch += pitchStep;
-        } else if (pitchDiff < 0) {
-            nextPitch -= pitchStep;
         }
 
         nextPitch = RotationUtils.clamp(nextPitch, -90f, 90f);
@@ -248,7 +186,7 @@ public class Aura extends Module {
         if (this.target != null) {
             MovingObjectPosition mop = RotationUtil.rayTrace(this.target.getBox(), yaw, pitch, 8.0);
             if (mop != null) {
-                ((IAccessorPlayerControllerMP) mc.playerController).callSyncCurrentPlayItem();
+                ((IAccessorPlayerControllerMP) mc.playerController).callSyncCurrentPlayItem();;
                 PacketUtil.sendPacket(
                         new C02PacketUseEntity(
                                 this.target.getEntity(),
@@ -272,7 +210,7 @@ public class Aura extends Module {
         } else if (!(java.lang.Boolean) this.weaponsOnly.getValue()
                 || ItemUtil.hasRawUnbreakingEnchant()
                 || this.allowTools.getValue() && ItemUtil.isHoldingTool()) {
-            if (((IAccessorPlayerControllerMP) mc.playerController).getIsHittingBlock()) {
+            if (mc.playerController.getIsHittingBlock()) {
                 return false;
             } else if (ItemUtil.isEating() || ItemUtil.isUsingBow()) {
                 return false;
@@ -397,7 +335,6 @@ public class Aura extends Module {
         this.rotations = new ModeValue("Rotation Mode", 2, new String[]{"NONE", "Manual", "Silent", "LockView", "Simulation"});
         this.yaw = new ModeValue("Yaw Mode", 2, new String[]{"Linear", "SmoothLinear", "EIO", "PhysicalSimulation", "SkewedUnimodal", "SimpleNeuralNetwork"}, () -> this.rotations.getValue() == 4);
         this.pitch = new ModeValue("Pitch Mode", 2, new String[]{"Linear", "SmoothLinear", "EIO", "PhysicalSimulation", "SkewedUnimodal", "SimpleNeuralNetwork"}, () -> this.rotations.getValue() == 4);
-        this.smoothBack = new BooleanValue("Smooth Back", true, () -> this.rotations.getValue() == 4);
         this.fov = new IntValue("FOV", 360, 30, 360);
         this.autoBlock = new ModeValue(
                 "AutoBlock Mode", 4, new String[]{"NONE", "Vanilla", "Fake", "BlinkLess", "Prediction", "Safe"}
@@ -464,9 +401,6 @@ public class Aura extends Module {
 
     @EventTarget(Priority.LOW)
     public void onUpdate(UpdateEvent event) {
-        if (event.getType() == EventType.PRE) {
-            this.cameraRotation = new Rotation(event.getYaw(), event.getPitch());
-        }
 
         if (event.getType() == EventType.POST && this.blinkReset) {
             this.blinkReset = false;
@@ -475,27 +409,11 @@ public class Aura extends Module {
         }
 
         if (this.isEnabled() && event.getType() == EventType.PRE) {
-            if (this.target == null) {
-                if (!this.smoothBackActive) {
-                    if (this.smoothBack.getValue() && this.rotations.getValue() == 4 && lastAuraRotation != null) {
-                        this.smoothBackActive = true;
-                        this.smoothBackTargetRotation = this.cameraRotation;
-                        this.smoothBackRotation = lastAuraRotation;
-                        this.smoothBackSpeedNoise = 0f;
-                        this.smoothBackNoiseTick = 0;
-                        this.postTargetLostTicks = 4;
-                    }
-                }
-            }
-
-            if (this.smoothBackActive) {
-                this.target = null;
-            }
 
             if (this.attackDelayMS > 0L) {
                 this.attackDelayMS -= 50L;
             }
-            boolean attack = !this.smoothBackActive && this.target != null && this.canAttack();
+            boolean attack = this.target != null && this.canAttack();
             boolean block = attack && this.canAutoBlock();
 
             if (!block) {
@@ -701,7 +619,6 @@ public class Aura extends Module {
                         if (this.moveFix.getValue() != 0 || this.rotations.getValue() == 3) {
                             event.setPervRotation(rotations[0], 1);
                         }
-                        lastAuraRotation = new Rotation(event.getNewYaw(), event.getNewPitch());
                     } else if (!rotationBlocked && this.rotations.getValue() == 4) {
 
                         simRotationSystem.setYawAlgorithm(yaw.getValuePrompt());
@@ -716,7 +633,6 @@ public class Aura extends Module {
                         if (this.moveFix.getValue() != 0) {
                             event.setPervRotation(event.getNewYaw(), 1);
                         }
-                        lastAuraRotation = new Rotation(event.getNewYaw(), event.getNewPitch());
                     }
                     if (attack) {
                         attacked = this.performAttack(event.getNewYaw(), event.getNewPitch());
@@ -736,33 +652,6 @@ public class Aura extends Module {
                 }
             }
         }
-        if (event.getType() == EventType.PRE) {
-            boolean shouldSmoothBack = this.smoothBack.getValue()
-                    && this.rotations.getValue() != 0
-                    && (this.smoothBackRotation != null || lastAuraRotation != null)
-                    && (this.smoothBackActive || !this.isEnabled());
-
-            if (shouldSmoothBack) {
-                Rotation base = this.smoothBackRotation != null ? this.smoothBackRotation : lastAuraRotation;
-                Rotation targetRot = this.smoothBackTargetRotation != null
-                        ? this.smoothBackTargetRotation
-                        : (this.cameraRotation != null ? this.cameraRotation : new Rotation(event.getYaw(), event.getPitch()));
-                Rotation next = smoothBackStep(base, targetRot);
-                this.smoothBackRotation = next;
-                lastAuraRotation = next;
-                event.setRotation(next.yaw, next.pitch, 1);
-                if (this.moveFix.getValue() != 0) {
-                    event.setPervRotation(event.getNewYaw(), 1);
-                }
-                if (RotationUtils.abs(RotationUtils.getAngleDiff(event.getNewYaw(), targetRot.yaw)) < 0.35f &&
-                        RotationUtils.abs(RotationUtils.getAngleDiff(event.getNewPitch(), targetRot.pitch)) < 0.35f) {
-                    lastAuraRotation = null;
-                    this.smoothBackActive = false;
-                    this.smoothBackTargetRotation = null;
-                    this.smoothBackRotation = null;
-                }
-            }
-        }
     }
 
     @EventTarget
@@ -773,9 +662,6 @@ public class Aura extends Module {
                     if (this.postTargetLostTicks > 0) {
                         this.postTargetLostTicks--;
                         this.target = null;
-                        break;
-                    }
-                    if (this.smoothBackActive) {
                         break;
                     }
                     if (this.target == null
@@ -883,7 +769,7 @@ public class Aura extends Module {
     @EventTarget
     public void onMove(MoveInputEvent event) {
         if (this.isEnabled()) {
-            if (this.moveFix.getValue() == 1
+            if ((this.moveFix.getValue() == 1)
                     && this.rotations.getValue() != 3
                     && RotationState.isActived()
                     && RotationState.getPriority() == 1.0F
@@ -943,13 +829,7 @@ public class Aura extends Module {
         this.hitRegistered = false;
         this.attackDelayMS = 0L;
         this.blockTick = 0;
-        this.lastAuraRotation = null;
-        this.smoothBackActive = false;
-        this.smoothBackTargetRotation = null;
-        this.smoothBackRotation = null;
         this.postTargetLostTicks = 0;
-        this.smoothBackSpeedNoise = 0f;
-        this.smoothBackNoiseTick = 0;
     }
 
     @Override
@@ -958,17 +838,6 @@ public class Aura extends Module {
         this.blockingState = false;
         this.isBlocking = false;
         this.fakeBlockState = false;
-        if (this.smoothBack.getValue() && this.rotations.getValue() == 4 && this.lastAuraRotation != null) {
-            this.smoothBackActive = true;
-            this.smoothBackTargetRotation = this.cameraRotation;
-            this.smoothBackRotation = this.lastAuraRotation;
-            this.smoothBackSpeedNoise = 0f;
-            this.smoothBackNoiseTick = 0;
-        } else {
-            this.smoothBackActive = false;
-            this.smoothBackTargetRotation = null;
-            this.smoothBackRotation = null;
-        }
         this.postTargetLostTicks = 0;
     }
 
@@ -1011,16 +880,17 @@ public class Aura extends Module {
     }
 
     public static class AttackData {
-        @Getter
         private final EntityLivingBase entity;
-        @Getter
         private final AxisAlignedBB box;
-        @Getter
         private final double x;
-        @Getter
         private final double y;
-        @Getter
         private final double z;
+
+        public EntityLivingBase getEntity() { return entity; }
+        public AxisAlignedBB getBox() { return box; }
+        public double getX() { return x; }
+        public double getY() { return y; }
+        public double getZ() { return z; }
 
         public AttackData(EntityLivingBase entityLivingBase) {
             this.entity = entityLivingBase;
