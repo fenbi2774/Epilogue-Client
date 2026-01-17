@@ -83,6 +83,7 @@ public class Epilogue {
         moduleManager.modules.put(AutoHeal.class, new AutoHeal());
         moduleManager.modules.put(AutoTool.class, new AutoTool());
         moduleManager.modules.put(AutoBlockIn.class, new AutoBlockIn());
+        moduleManager.modules.put(BackTrack.class, new BackTrack());
         moduleManager.modules.put(BAHalo.class, new BAHalo());
         moduleManager.modules.put(BedNuker.class, new BedNuker());
         moduleManager.modules.put(BedESP.class, new BedESP());
