@@ -145,6 +145,7 @@ public class Epilogue {
         moduleManager.modules.put(TargetESP.class, new TargetESP());
         moduleManager.modules.put(TargetHUD.class, new TargetHUD());
         moduleManager.modules.put(TargetStrafe.class, new TargetStrafe());
+        moduleManager.modules.put(Timer.class, new Timer());
         moduleManager.modules.put(Tracers.class, new Tracers());
         moduleManager.modules.put(Trajectories.class, new Trajectories());
         moduleManager.modules.put(MusicLyrics.class, new MusicLyrics());

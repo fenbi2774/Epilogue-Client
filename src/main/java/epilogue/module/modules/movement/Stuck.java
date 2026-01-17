@@ -2,6 +2,8 @@ package epilogue.module.modules.movement;
 
 import epilogue.Epilogue;
 import epilogue.enums.BlinkModules;
+import epilogue.value.values.FloatValue;
+import epiloguemixinbridge.IAccessorMinecraft;
 import net.minecraft.client.Minecraft;
 import epilogue.event.EventTarget;
 import epilogue.events.LivingUpdateEvent;
@@ -15,6 +17,8 @@ public class Stuck extends Module {
     private double savedMotionX;
     private double savedMotionY;
     private double savedMotionZ;
+
+    private final FloatValue timer = new FloatValue("Timer", 1.0F, 0.0F, 1.0F);
 
     public Stuck() {
         super("Stuck", false);
@@ -36,6 +40,7 @@ public class Stuck extends Module {
             mc.thePlayer.motionX = 0.0;
             mc.thePlayer.motionZ = 0.0;
             mc.thePlayer.motionY = 0.0;
+            ((IAccessorMinecraft)mc).getTimer().timerSpeed = timer.getValue();
         }
     }
 
@@ -73,6 +78,7 @@ public class Stuck extends Module {
             mc.thePlayer.motionX = savedMotionX;
             mc.thePlayer.motionZ = savedMotionZ;
             mc.thePlayer.motionY = savedMotionY;
+            ((IAccessorMinecraft)mc).getTimer().timerSpeed = 1.0F;
         }
     }
 }
