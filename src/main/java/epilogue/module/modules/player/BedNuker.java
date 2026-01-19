@@ -12,8 +12,6 @@ import epilogue.management.RotationState;
 import epiloguemixinbridge.IAccessorPlayerControllerMP;
 import epilogue.module.Module;
 import epilogue.module.modules.render.BedESP;
-import epilogue.module.modules.render.dynamicisland.notification.ModuleStateManager;
-import epilogue.module.modules.render.dynamicisland.notification.BedNukerData;
 import epilogue.util.*;
 import epilogue.value.values.*;
 import epilogue.value.values.BooleanValue;
@@ -95,10 +93,6 @@ public class BedNuker extends Module {
         this.isBed = false;
         this.readyToBreak = false;
         this.breaking = false;
-        
-        BedNukerData bedNukerData = BedNukerData.getInstance();
-        bedNukerData.setBreaking(false);
-        bedNukerData.setBreakProgress(0.0f);
     }
 
     private float calcProgress() {
@@ -362,10 +356,6 @@ public class BedNuker extends Module {
                             this.doSwing();
                             mc.effectRenderer.addBlockHitEffects(this.targetBed, this.getHitFacing(this.targetBed));
                             this.breakStage = 1;
-                            
-                            BedNukerData bedNukerData = BedNukerData.getInstance();
-                            bedNukerData.setBreaking(true);
-                            bedNukerData.setTargetBlock(this.targetBed, mc.theWorld.getBlockState(this.targetBed).getBlock());
                         }
                         break;
                     case 1:
@@ -382,9 +372,7 @@ public class BedNuker extends Module {
                         BlockPos target = this.targetBed;
                         float delta = tick * this.getBreakDelta(blockState, target, slot, canBreak);
                         mc.effectRenderer.addBlockHitEffects(this.targetBed, this.getHitFacing(this.targetBed));
-                        
-                        BedNukerData bedNukerData = BedNukerData.getInstance();
-                        bedNukerData.setBreakProgress(this.calcProgress());
+
                         if (this.breakProgress >= 1.0F - 0.3F * ((float) this.speed.getValue().intValue() / 100.0F)
                                 || delta >= 1.0F - 0.3F * ((float) this.speed.getValue().intValue() / 100.0F)) {
                             if (this.mode.getValue() == 1) {
@@ -629,19 +617,12 @@ public class BedNuker extends Module {
             }
         }
     }
-
-    @Override
-    public void onEnabled() {
-        ModuleStateManager.getInstance().setModuleState("BedNuker", true);
-    }
     
     @Override
     public void onDisabled() {
         this.resetBreaking();
         this.savedSlot = -1;
         Epilogue.delayManager.stopDelay(false, DelayModules.BED_NUKER);
-        ModuleStateManager.getInstance().setModuleState("BedNuker", false);
-        BedNukerData.getInstance().reset();
     }
 
     @Override

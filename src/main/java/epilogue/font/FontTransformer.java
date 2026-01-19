@@ -69,6 +69,9 @@ public class FontTransformer {
         loadFont("JelloLight", "/assets/minecraft/epilogue/font/jellolight.ttf");
         loadFont("JelloMedium", "/assets/minecraft/epilogue/font/jellomedium.ttf");
         loadFont("JelloRegular", "/assets/minecraft/epilogue/font/jelloregular.ttf");
+        loadFont("NunitoBold", "/assets/minecraft/epilogue/font/Nunito-Bold.ttf");
+        loadFont("NunitoRegular", "/assets/minecraft/epilogue/font/Nunito-Regular.ttf");
+        loadFont("NunitoLight", "/assets/minecraft/epilogue/font/Nunito-Light.ttf");
     }
 
     private void loadFont(String name, String path) {

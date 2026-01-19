@@ -14,8 +14,6 @@ import epilogue.value.values.BooleanValue;
 import epilogue.value.values.IntValue;
 import epilogue.value.values.ModeValue;
 import epilogue.value.values.PercentValue;
-import epilogue.module.modules.render.dynamicisland.notification.ModuleStateManager;
-import epilogue.module.modules.render.dynamicisland.notification.ScaffoldData;
 import net.minecraft.block.Block;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.ScaledResolution;
@@ -24,11 +22,9 @@ import net.minecraft.item.Item;
 import net.minecraft.item.ItemBlock;
 import net.minecraft.item.ItemStack;
 import net.minecraft.network.play.client.C0APacketAnimation;
-import net.minecraft.potion.Potion;
 import net.minecraft.util.*;
 import net.minecraft.util.MovingObjectPosition.MovingObjectType;
 import net.minecraft.world.WorldSettings.GameType;
-import net.minecraft.client.settings.KeyBinding;
 import org.lwjgl.opengl.GL11;
 
 import java.awt.*;
@@ -61,11 +57,6 @@ public class Scaffold extends Module {
     private float yaw = -180.0F;
     private float pitch = 0.0F;
     private boolean canRotate = false;
-    private long lastBPSUpdateTime = 0;
-    private double lastX = 0, lastZ = 0;
-    private double distanceThisSecond = 0;
-    private long bpsResetTime = 0;
-    private float currentBPS = 0.0f;
     private int towerTick = 0;
     private int towerDelay = 0;
     private int stage = 0;
@@ -190,7 +181,6 @@ public class Scaffold extends Module {
                 if (mc.playerController.getCurrentGameType() != GameType.CREATIVE) {
                     this.blockCount--;
                 }
-                onBlockPlaced();
                 if (this.swing.getValue()) {
                     mc.thePlayer.swingItem();
                 } else {
@@ -294,8 +284,6 @@ public class Scaffold extends Module {
                 mc.thePlayer.motionY = this.savedMotionY;
                 this.safeStuckActive = false;
             }
-            updateBPS();
-            updateScaffoldData();
 
             if (this.rotationTick > 0) {
                 this.rotationTick--;
@@ -837,16 +825,6 @@ public class Scaffold extends Module {
         this.safeStuckDelayTicks = 0;
         this.safePrevMotionY = 0.0;
         this.safeStuckActive = false;
-
-        this.lastBPSUpdateTime = System.currentTimeMillis();
-        this.lastX = mc.thePlayer.posX;
-        this.lastZ = mc.thePlayer.posZ;
-        this.distanceThisSecond = 0;
-        this.bpsResetTime = System.currentTimeMillis();
-        this.currentBPS = 0.0f;
-
-        ModuleStateManager.getInstance().setModuleState("Scaffold", true);
-        updateScaffoldData();
     }
 
     @Override
@@ -866,81 +844,6 @@ public class Scaffold extends Module {
         this.safeStuckDelayTicks = 0;
         this.safePrevMotionY = 0.0;
         this.safeStuckActive = false;
-        ModuleStateManager.getInstance().setModuleState("Scaffold", false);
-    }
-
-    private void updateScaffoldData() {
-        ScaffoldData scaffoldData = ScaffoldData.getInstance();
-        scaffoldData.setBlocksLeft(getBlocksLeft());
-        scaffoldData.setBlocksPerSecond(this.currentBPS);
-    }
-
-
-    private void updateBPS() {
-        if (mc.thePlayer == null) return;
-
-        long currentTime = System.currentTimeMillis();
-
-        double currentX = mc.thePlayer.posX;
-        double currentZ = mc.thePlayer.posZ;
-        double deltaX = currentX - this.lastX;
-        double deltaZ = currentZ - this.lastZ;
-        double distance = Math.sqrt(deltaX * deltaX + deltaZ * deltaZ);
-
-        this.distanceThisSecond += distance;
-        this.lastX = currentX;
-        this.lastZ = currentZ;
-
-        long timeDiff = currentTime - this.bpsResetTime;
-        if (timeDiff > 0) {
-            this.currentBPS = (float) (this.distanceThisSecond * (1000.0 / timeDiff));
-        }
-
-        if (timeDiff >= 1000) {
-            this.distanceThisSecond = 0;
-            this.bpsResetTime = currentTime;
-        }
-
-        this.lastBPSUpdateTime = currentTime;
-    }
-
-    private int getBlocksLeft() {
-        if (mc.thePlayer == null) return 0;
-        int blocks = 0;
-        for (int i = 0; i < 9; i++) {
-            ItemStack stack = mc.thePlayer.inventory.mainInventory[i];
-            if (stack != null && stack.getItem() instanceof ItemBlock) {
-                blocks += stack.stackSize;
-            }
-        }
-        return blocks;
-    }
-
-    private void onBlockPlaced() {
-        updateBPS();
-        updateScaffoldData();
-    }
-
-    public ItemStack getCurrentScaffoldBlock() {
-        if (mc.thePlayer == null) return null;
-
-        if (this.itemSpoof.getValue()) {
-            for (int i = 0; i < 9; i++) {
-                ItemStack stack = mc.thePlayer.inventory.getStackInSlot(i);
-                if (stack != null && stack.getItem() instanceof ItemBlock) {
-                    Block block = ((ItemBlock) stack.getItem()).getBlock();
-                    if (!BlockUtil.isContainer(block)) {
-                        return stack;
-                    }
-                }
-            }
-        } else {
-            ItemStack heldItem = mc.thePlayer.getHeldItem();
-            if (heldItem != null && heldItem.getItem() instanceof ItemBlock) {
-                return heldItem;
-            }
-        }
-        return null;
     }
 
     public static class BlockData {

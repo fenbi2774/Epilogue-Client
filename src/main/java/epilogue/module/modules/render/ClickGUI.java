@@ -3,14 +3,12 @@ package epilogue.module.modules.render;
 import epilogue.Epilogue;
 import epilogue.module.Module;
 import epilogue.module.ModuleCategory;
-import epilogue.module.modules.render.dynamicisland.DynamicIsland;
-import epilogue.util.ChatUtil;
 import epilogue.value.values.ModeValue;
 import org.lwjgl.input.Keyboard;
 
 public class ClickGUI extends Module {
     
-    private final ModeValue mode = new ModeValue("Mode", 1, new String[]{"Dropdown", "Menu", "Dynamicisland"});
+    private final ModeValue mode = new ModeValue("Mode", 1, new String[]{"Dropdown", "Menu"});
 
     public ClickGUI() {
         super("ClickGUI", false);
@@ -30,19 +28,10 @@ public class ClickGUI extends Module {
                     }
                     break;
                 case "Menu":
-                case "Dynamicisland":
                     if (Epilogue.guiManager.isMenuGuiOpen()) {
                         Epilogue.guiManager.closeMenuGui();
                     } else {
-                        boolean embed = "Dynamicisland".equals(selectedMode);
-                        if (embed) {
-                            DynamicIsland di = (DynamicIsland) Epilogue.moduleManager.modules.get(DynamicIsland.class);
-                            if (di == null || !di.isEnabled()) {
-                                ChatUtil.sendRaw("Please enable dynamicisland to use it mode of clickgui");
-                                embed = false;
-                            }
-                        }
-                        Epilogue.guiManager.openMenuGui(embed);
+                        Epilogue.guiManager.openMenuGui();
                     }
                     break;
             }

@@ -1,16 +1,20 @@
 package epilogue.util.render;
 
+import epilogue.util.shader.ShaderUtils;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.client.renderer.Tessellator;
 import net.minecraft.client.renderer.WorldRenderer;
 import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
+
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.ResourceLocation;
 import org.lwjgl.opengl.GL11;
+import org.lwjgl.opengl.GL20;
 
 import java.awt.*;
 
@@ -19,6 +23,51 @@ import static org.lwjgl.opengl.GL11.*;
 public class RenderUtil {
 
     private static final Minecraft mc = Minecraft.getMinecraft();
+
+    private static ShaderUtils roundedRectShader;
+    private static final String ROUNDED_RECT_FRAG =
+            "#version 120\n" +
+            "uniform vec2 rectSize;\n" +
+            "uniform vec4 color;\n" +
+            "uniform float radius;\n" +
+            "float roundSDF(vec2 p, vec2 b, float r) {\n" +
+            "    return length(max(abs(p) - b, 0.0)) - r;\n" +
+            "}\n" +
+            "void main() {\n" +
+            "    vec2 rectHalf = rectSize * 0.5;\n" +
+            "    vec2 p = rectHalf - (gl_TexCoord[0].st * rectSize);\n" +
+            "    float a = (1.0 - smoothstep(0.0, 1.0, roundSDF(p, rectHalf - radius - 1.0, radius))) * color.a;\n" +
+            "    gl_FragColor = vec4(color.rgb, a);\n" +
+            "}";
+
+    private static ShaderUtils getRoundedRectShader() {
+        if (roundedRectShader == null) {
+            roundedRectShader = new ShaderUtils(ROUNDED_RECT_FRAG, true);
+        }
+        return roundedRectShader;
+    }
+
+    public static void drawQuads() {
+        ScaledResolution sr = new ScaledResolution(mc);
+        float w = (float) sr.getScaledWidth_double();
+        float h = (float) sr.getScaledHeight_double();
+
+        drawQuads(0f, 0f, w, h);
+    }
+
+    public static void drawQuads(float x, float y, float width, float height) {
+        glBegin(GL_QUADS);
+        glTexCoord2f(0f, 0f);
+        glVertex2f(x, y);
+        glTexCoord2f(0f, 1f);
+        glVertex2f(x, y + height);
+        glTexCoord2f(1f, 1f);
+        glVertex2f(x + width, y + height);
+        glTexCoord2f(1f, 0f);
+        glVertex2f(x + width, y);
+        glEnd();
+
+    }
 
     public static void drawRect(float left, float top, float width, float height, int color) {
         Gui.drawRect((int)left, (int)top, (int)(left + width), (int)(top + height), color);
@@ -139,61 +188,49 @@ public class RenderUtil {
     }
 
     public static void drawRoundedRect(float x, double y, float width, double height, float radius, int color) {
-        float x1 = x + width;
-        double y1 = y + height;
-        final float f = (color >> 24 & 0xFF) / 255.0F;
-        final float f1 = (color >> 16 & 0xFF) / 255.0F;
-        final float f2 = (color >> 8 & 0xFF) / 255.0F;
-        final float f3 = (color & 0xFF) / 255.0F;
-        
-        GL11.glPushAttrib(0);
-        GL11.glScaled(0.5, 0.5, 0.5);
+        if (width <= 0.0f || height <= 0.0) return;
 
-        x *= 2;
-        y *= 2;
-        x1 *= 2;
-        y1 *= 2;
+        float h = (float) height;
+        float r = Math.max(0.0f, Math.min(radius, Math.min(width, h) / 2.0f));
+        if (r <= 0.0f) {
+            drawRect(x, (float) y, width, (float) height, color);
+            return;
+        }
 
-        glDisable(GL11.GL_TEXTURE_2D);
-        GL11.glColor4f(f1, f2, f3, f);
+        float a = (color >> 24 & 0xFF) / 255.0f;
+        float cr = (color >> 16 & 0xFF) / 255.0f;
+        float cg = (color >> 8 & 0xFF) / 255.0f;
+        float cb = (color & 0xFF) / 255.0f;
+
+        boolean blend = glIsEnabled(GL_BLEND);
+        boolean tex = glIsEnabled(GL_TEXTURE_2D);
+
         GlStateManager.enableBlend();
-        glEnable(GL11.GL_LINE_SMOOTH);
-        GL11.glHint(GL11.GL_LINE_SMOOTH_HINT, GL11.GL_NICEST);
+        GlStateManager.tryBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ZERO);
 
-        GL11.glBegin(GL11.GL_POLYGON);
-        final double v = Math.PI / 180;
+        GlStateManager.enableTexture2D();
+        GlStateManager.color(1.0f, 1.0f, 1.0f, 1.0f);
 
-        for (int i = 0; i <= 90; i += 1) {
-            GL11.glVertex2d(x + radius + Math.sin(i * v) * (radius * -1), y + radius + Math.cos(i * v) * (radius * -1));
-        }
+        ShaderUtils shader = getRoundedRectShader();
+        shader.init();
+        shader.setUniformf("rectSize", width, h);
+        shader.setUniformf("color", cr, cg, cb, a);
+        shader.setUniformf("radius", r);
 
-        for (int i = 90; i <= 180; i += 1) {
-            GL11.glVertex2d(x + radius + Math.sin(i * v) * (radius * -1), y1 - radius + Math.cos(i * v) * (radius * -1));
-        }
+        drawQuads(x, (float) y, width, h);
 
-        for (int i = 0; i <= 90; i += 1) {
-            GL11.glVertex2d(x1 - radius + Math.sin(i * v) * radius, y1 - radius + Math.cos(i * v) * radius);
-        }
+        shader.unload();
 
-        for (int i = 90; i <= 180; i += 1) {
-            GL11.glVertex2d(x1 - radius + Math.sin(i * v) * radius, y + radius + Math.cos(i * v) * radius);
-        }
+        GlStateManager.color(1.0f, 1.0f, 1.0f, 1.0f);
 
-        GL11.glEnd();
-
-        glEnable(GL11.GL_TEXTURE_2D);
-        glDisable(GL11.GL_LINE_SMOOTH);
-        glEnable(GL11.GL_TEXTURE_2D);
-
-        GL11.glScaled(2, 2, 2);
-
-        GL11.glPopAttrib();
-        GL11.glColor4f(1, 1, 1, 1);
+        if (!blend) GlStateManager.disableBlend();
+        if (!tex) GlStateManager.disableTexture2D();
     }
+
     public static void drawRoundedRect(float x, float y, float width, float height, float radius, Color color) {
         drawRoundedRect(x, y, width, height, radius, color.getRGB());
     }
-    
+
     public static void scissorStart(float x, float y, float width, float height) {
         net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getMinecraft();
         net.minecraft.client.gui.ScaledResolution sr = new net.minecraft.client.gui.ScaledResolution(mc);

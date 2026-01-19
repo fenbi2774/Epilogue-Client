@@ -3,7 +3,6 @@ package epilogue.hooks;
 import epilogue.Epilogue;
 import epilogue.module.modules.player.ChestStealer;
 import epilogue.module.modules.render.ChestView;
-import epilogue.module.modules.render.dynamicisland.DynamicIsland;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.inventory.GuiChest;
 import net.minecraft.client.gui.inventory.GuiContainer;
@@ -17,11 +16,10 @@ public final class GuiContainerHooks {
         if (self instanceof GuiChest) {
             ChestView chestView = (ChestView) Epilogue.moduleManager.getModule("ChestView");
             ChestStealer chestStealer = (ChestStealer) Epilogue.moduleManager.getModule("ChestStealer");
-            DynamicIsland dynamicIsland = (DynamicIsland) Epilogue.moduleManager.getModule("DynamicIsland");
             if ((chestView != null && chestView.isEnabled()
-                    && chestStealer != null && chestStealer.isEnabled()) || (dynamicIsland.isEnabled() && chestStealer.isEnabled())) {
+                    && chestStealer != null && chestStealer.isEnabled())) {
                 Minecraft.getMinecraft().setIngameFocus();
-                Minecraft.getMinecraft().currentScreen = (GuiChest) self;
+                Minecraft.getMinecraft().currentScreen = self;
                 ci.cancel();
             }
         }

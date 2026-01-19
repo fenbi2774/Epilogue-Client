@@ -59,7 +59,7 @@ public class CustomFontRenderer {
         float g = (color >> 8 & 0xFF) / 255f;
         float b = (color & 0xFF) / 255f;
         float a = (color >> 24 & 0xFF) / 255f;
-        if (a == 0) a = 1;
+        if (a == 0) a = 0;
         
         GlStateManager.color(r, g, b, a);
         GL11.glPushMatrix();
@@ -72,6 +72,7 @@ public class CustomFontRenderer {
         }
         
         GL11.glPopMatrix();
+        GlStateManager.color(1.0f, 1.0f, 1.0f, 1.0f);
     }
     
     private int drawChar(char chr, float x, double y) {
@@ -84,7 +85,7 @@ public class CustomFontRenderer {
         GlStateManager.bindTexture(getOrGenerateCharTexture(page));
         GlStateManager.enableTexture2D();
         GlStateManager.enableBlend();
-        GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
+        GlStateManager.tryBlendFuncSeparate(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA, 1, 0);
         
         GL11.glBegin(GL11.GL_QUADS);
         GL11.glTexCoord2d((double) xTexCoord / textureWidth, (double) yTexCoord / textureHeight);

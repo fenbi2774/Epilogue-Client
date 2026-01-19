@@ -38,20 +38,6 @@ public class WidgetManager {
             w.render(event.getPartialTicks());
             w.updatePos(sr);
         }
-
-        boolean glowTarget = epilogue.module.modules.render.PostProcessing.isTargetHUDGlowEnabled();
-        boolean glowArrayList = epilogue.module.modules.render.PostProcessing.isArrayListGlowEnabled();
-        if (glowTarget || glowArrayList) {
-            for (Widget w : widgets) {
-                if (!w.shouldRender()) continue;
-                boolean shouldGlow = (glowTarget && (w instanceof epilogue.ui.widget.impl.TargetHUDWidget))
-                        || (glowArrayList && (w instanceof epilogue.ui.widget.impl.ArrayListWidget));
-                if (!shouldGlow) continue;
-                w.updatePos(sr);
-                w.render(event.getPartialTicks());
-                w.updatePos(sr);
-            }
-        }
     }
 
     @EventTarget

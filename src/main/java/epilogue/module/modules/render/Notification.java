@@ -9,16 +9,18 @@ import epilogue.ui.chat.GuiChat;
 import epilogue.util.render.ColorUtil;
 import epilogue.util.render.PostProcessing;
 import epilogue.util.render.RenderUtil;
-import epilogue.value.values.IntValue;
 import epilogue.value.values.ModeValue;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.shader.Framebuffer;
+
 import net.minecraft.util.ResourceLocation;
 
 import org.lwjgl.opengl.GL11;
+import org.lwjgl.opengl.GL12;
 
 import java.awt.*;
 import java.util.ArrayList;
@@ -28,38 +30,26 @@ import java.util.Map;
 
 public class Notification extends Module {
 
-    private final IntValue bgAlpha = new IntValue("BackgroundAlpha", 45, 1, 255);
-
-    private final ModeValue mode = new ModeValue("Mode", 1, new String[]{"Normal 1", "Normal 2"});
+    private final ModeValue mode = new ModeValue("Mode", 1, new String[]{"Epilogue", "Exhibition"});
 
     private final Minecraft mc = Minecraft.getMinecraft();
-
-    private  final float animationSpeed = 10;
-
-    private final float shadowRadius = 5f;
-    private final float shadowSpread = 0.03f;
-    private final float shadowAlpha = 0.03f;
-
     private final Map<ModuleToggleNotification, NotificationState> notificationStates = new HashMap<>();
     private final List<ModuleToggleNotification> displayQueue = new ArrayList<>();
-
-    private static final float NOTIFICATION_WIDTH = 99f;
-    private static final float NOTIFICATION_HEIGHT = 28f;
-    private static final float NOTIFICATION_SPACING = 6f;
-    private static final float NOTIFICATION_RADIUS = 6f;
-    private static final float SLIDE_DURATION = 600f;
-    private static final long NOTIFICATION_DURATION = 2000L;
-
-    private static final ResourceLocation ENABLE_ICON = new ResourceLocation("epilogue/texture/toggle/enable.png");
-    private static final ResourceLocation DISABLE_ICON = new ResourceLocation("epilogue/texture/toggle/disable.png");
-
     private static Notification instance;
+
+    private static final float width = 99f;
+    private static final float height = 28f;
+    private static final float space = 6f;
+    private static final float radius = 6f;
+    private static final float animateTime = 600f;
+    private static final long animateTime1 = 2000L;
+    private static final ResourceLocation e = new ResourceLocation("epilogue/texture/noti/okay.png");
+    private static final ResourceLocation d = new ResourceLocation("epilogue/texture/noti/warning.png");
 
     private float anchorX;
     private float anchorY;
-
-    private float lastWidth = NOTIFICATION_WIDTH;
-    private float lastHeight = NOTIFICATION_HEIGHT;
+    private float lastWidth = width;
+    private float lastHeight = height;
 
     public Notification() {
         super("Notification", false);
@@ -76,6 +66,10 @@ public class Notification extends Module {
         onRender2D(new Render2DEvent(0.0f));
     }
 
+    private boolean isExhibition() {
+        return mode.getValue() == 1;
+    }
+
     public void onModuleToggle(String moduleName, boolean enabled) {
         if (!this.isEnabled()) return;
 
@@ -89,6 +83,7 @@ public class Notification extends Module {
             NotificationState oldestState = notificationStates.get(oldest);
             if (oldestState != null) {
                 oldestState.removing = true;
+                oldestState.startTime = System.currentTimeMillis();
             }
         }
     }
@@ -106,7 +101,7 @@ public class Notification extends Module {
     }
 
     private static class NotificationState {
-        float offsetX = NOTIFICATION_WIDTH + 20;
+        float offsetX = width + 20;
         float targetOffsetX = 0;
         float alpha = 0f;
         float targetAlpha = 1f;
@@ -149,8 +144,8 @@ public class Notification extends Module {
         }
 
         boolean alignRight = anchorX >= (new ScaledResolution(mc).getScaledWidth() / 2.0f);
-        float sideMargin = 15f;
-        float bottomMargin = 15f;
+        float sideMargin = isExhibition() ? 0f : 15f;
+        float bottomMargin = isExhibition() ? 0f : 15f;
 
         GlStateManager.pushMatrix();
         GlStateManager.enableBlend();
@@ -160,47 +155,85 @@ public class Notification extends Module {
 
         int position = 0;
         int visibleCount = 0;
+        final float exhiEnterMs = 150.0f;
+        final float exhiLeaveMs = 150.0f;
         for (ModuleToggleNotification notification : displayQueue) {
             NotificationState state = notificationStates.get(notification);
             if (state == null) continue;
 
             state.position = position;
 
-            float width = isNormal2() ? getNormalWidth(notification) : NOTIFICATION_WIDTH;
-            float height = isNormal2() ? getNormal2Height() : NOTIFICATION_HEIGHT;
+            float width = isExhibition() ? getExhibitionWidth(notification) : Notification.width;
+            float height = isExhibition() ? getExhibitionHeight() : Notification.height;
 
-            float yOffset = position * (height + NOTIFICATION_SPACING);
-            float x = alignRight
-                    ? (anchorX - width - sideMargin + state.offsetX)
-                    : (anchorX + sideMargin - state.offsetX);
-            float y = anchorY - height - bottomMargin - yOffset;
+            float yOffset = isExhibition() ? (position * height) : (position * (height + space));
 
-            updateAnimation(state);
+            float targetX = isExhibition() ? (alignRight ? (anchorX - width) : anchorX) : (alignRight ? (anchorX - width - sideMargin) : (anchorX + sideMargin));
 
-            if (state.alpha > 0.02f) {
+            float y = isExhibition() ? (anchorY - height - yOffset) : (anchorY - height - bottomMargin - yOffset);
+
+            float x;
+            if (isExhibition()) {
+                long now = System.currentTimeMillis();
+                long dt = now - notification.timestamp;
+
+                boolean leaving = state.removing;
+                long phaseTime = leaving ? (now - state.startTime) : dt;
+                float tEnter = Math.min(1.0f, (float) dt / exhiEnterMs);
+                float tLeave = Math.min(1.0f, (float) phaseTime / exhiLeaveMs);
+
+                float offscreenX = new ScaledResolution(mc).getScaledWidth();
+                float target = targetX;
+
+                if (leaving) {
+                    x = target + (offscreenX - target) * tLeave;
+                } else {
+                    x = offscreenX + (target - offscreenX) * tEnter;
+                }
+
+            } else {
+                x = alignRight ? (anchorX - width - sideMargin + state.offsetX) : (anchorX + sideMargin - state.offsetX);
+            }
+
+            if (!isExhibition()) updateAnimation(state);
+
+            if (isExhibition() || state.alpha > 0.02f) {
                 visibleCount++;
                 GlStateManager.pushMatrix();
-
-                float centerX = x + width / 2;
-                float centerY = y + height / 2;
-                GlStateManager.translate(centerX, centerY, 0);
-                GlStateManager.scale(state.scale, state.scale, 1);
-                GlStateManager.translate(-centerX, -centerY, 0);
-
-                float renderAlpha = Math.max(0f, Math.min(1f, state.alpha));
+                if (!isExhibition()) {
+                    float centerX = x + width / 2;
+                    float centerY = y + height / 2;
+                    GlStateManager.translate(centerX, centerY, 0);
+                    GlStateManager.scale(state.scale, state.scale, 1);
+                    GlStateManager.translate(-centerX, -centerY, 0);
+                }
+                float renderAlpha;
+                if (isExhibition()) {
+                    long now = System.currentTimeMillis();
+                    long dt = now - notification.timestamp;
+                    if (!state.removing) {
+                        renderAlpha = Math.min(1.0f, (float) dt / exhiEnterMs);
+                    } else {
+                        renderAlpha = 1.0f;
+                    }
+                } else {
+                    renderAlpha = Math.max(0f, Math.min(1f, state.alpha));
+                }
                 Framebuffer bloomBuffer = drawNotification(notification, x, y, renderAlpha);
 
                 GlStateManager.popMatrix();
 
-                PostProcessing.endBloom(bloomBuffer);
+                if (bloomBuffer != null) {
+                    PostProcessing.endBloom(bloomBuffer);
+                }
                 position++;
             }
         }
 
         float count = Math.max(1, visibleCount);
-        lastWidth = isNormal2() ? getNormal2MaxWidth() : NOTIFICATION_WIDTH;
-        float baseH = isNormal2() ? getNormal2Height() : NOTIFICATION_HEIGHT;
-        lastHeight = (baseH * count) + (NOTIFICATION_SPACING * (count - 1));
+        lastWidth = isExhibition() ? getExhibitionMaxWidth() : width;
+        float baseH = isExhibition() ? getExhibitionHeight() : height;
+        lastHeight = isExhibition() ? (baseH * count) : ((baseH * count) + (space * (count - 1)));
 
         GL11.glDisable(GL11.GL_LINE_SMOOTH);
         GlStateManager.disableBlend();
@@ -208,7 +241,13 @@ public class Notification extends Module {
 
         displayQueue.removeIf(notification -> {
             NotificationState state = notificationStates.get(notification);
-            return state == null || (state.removing && state.alpha < 0.01f);
+            if (state == null) return true;
+            if (isExhibition()) {
+                if (!state.removing) return false;
+                long removeElapsed = System.currentTimeMillis() - state.startTime;
+                return removeElapsed > (long) exhiLeaveMs + 200L;
+            }
+            return state.removing && state.alpha < 0.01f;
         });
 
         if (preview) {
@@ -218,39 +257,35 @@ public class Notification extends Module {
     }
 
     public float getLastWidth() {
-        return lastWidth <= 0 ? NOTIFICATION_WIDTH : lastWidth;
+        return lastWidth <= 0 ? width : lastWidth;
     }
 
     public float getLastHeight() {
-        return lastHeight <= 0 ? NOTIFICATION_HEIGHT : lastHeight;
+        return lastHeight <= 0 ? height : lastHeight;
     }
 
-    private boolean isNormal2() {
-        return "Normal 2".equals(mode.getModeString());
+    private float getExhibitionHeight() {
+        return 26f;
     }
 
-    private float getNormal2Height() {
-        return 27f;
-    }
-
-    private float getNormalWidth(ModuleToggleNotification notification) {
+    private float getExhibitionWidth(ModuleToggleNotification notification) {
         FontTransformer transformer = FontTransformer.getInstance();
-        Font titleFont = transformer.getFont("OpenSansSemiBold", 32);
-        Font descFont = transformer.getFont("OpenSansSemiBold", 26);
-        if (titleFont == null || descFont == null) return 140f;
+        Font titleFont = transformer.getFont("Inter_Regular", 36);
+        Font descFont = transformer.getFont("Inter_Regular", 28);
+        if (titleFont == null || descFont == null) return 100f;
 
         String title = notification.moduleName;
         String desc = notification.enabled ? "Enabled" : "Disabled";
 
-        float w1 = CustomFontRenderer.getStringWidth(title, titleFont);
+        float w1 = CustomFontRenderer.getStringWidth(title, titleFont) + 2.0f;
         float w2 = CustomFontRenderer.getStringWidth(desc, descFont);
-        return Math.max(140f, Math.max(w1, w2) + 40f);
+        return Math.max(100.0f, Math.max(w1, w2) + 24.0f);
     }
 
-    private float getNormal2MaxWidth() {
+    private float getExhibitionMaxWidth() {
         float max = 140f;
         for (ModuleToggleNotification n : displayQueue) {
-            max = Math.max(max, getNormalWidth(n));
+            max = Math.max(max, getExhibitionWidth(n));
         }
         return max;
     }
@@ -266,23 +301,27 @@ public class Notification extends Module {
                 long totalElapsed = currentTime - notification.timestamp;
 
                 if (!state.removing) {
-                    if (totalElapsed > NOTIFICATION_DURATION) {
+                    if (totalElapsed > animateTime1) {
                         state.removing = true;
-                        state.targetAlpha = 0f;
-                        state.targetOffsetX = NOTIFICATION_WIDTH + 30;
                         state.startTime = currentTime;
+                        if (!isExhibition()) {
+                            state.targetAlpha = 0f;
+                            state.targetOffsetX = width + 30;
+                        }
                     }
                 } else {
                     long removeElapsed = currentTime - state.startTime;
 
-                    if (state.alpha <= 0.02f && state.offsetX >= NOTIFICATION_WIDTH + 10) {
-                        toRemove.add(notification);
-                    } else if (removeElapsed > 1000) {
-                        toRemove.add(notification);
+                    if (!isExhibition()) {
+                        if (state.alpha <= 0.02f && state.offsetX >= width + 10) {
+                            toRemove.add(notification);
+                        } else if (removeElapsed > 1000) {
+                            toRemove.add(notification);
+                        }
                     }
                 }
 
-                if (totalElapsed > NOTIFICATION_DURATION + 1500) {
+                if (!isExhibition() && totalElapsed > animateTime1 + 1500) {
                     toRemove.add(notification);
                 }
             } else {
@@ -298,6 +337,7 @@ public class Notification extends Module {
 
     private void updateAnimation(NotificationState state) {
         long elapsed = System.currentTimeMillis() - state.startTime;
+        float animationSpeed = 10;
         float speed = animationSpeed * 0.08f;
 
         if (state.justCreated && elapsed > 50) {
@@ -309,15 +349,15 @@ public class Notification extends Module {
             long removeElapsed = elapsed;
             float removeProgress = Math.min(1.0f, removeElapsed / 400f);
             float easing = easeInCubic(removeProgress);
-            state.offsetX = easing * (NOTIFICATION_WIDTH + 30);
+            state.offsetX = easing * (width + 30);
 
             if (removeProgress > 0.6f) {
                 float fadeProgress = (removeProgress - 0.6f) / 0.4f;
                 state.alpha = 1.0f - fadeProgress;
             }
         } else {
-            float easing = easeOutCubic(Math.min(1.0f, elapsed / SLIDE_DURATION));
-            state.offsetX = (NOTIFICATION_WIDTH + 20) * (1 - easing);
+            float easing = easeOutCubic(Math.min(1.0f, elapsed / animateTime));
+            state.offsetX = (width + 20) * (1 - easing);
         }
         if (Math.abs(offsetDiff) < 0.3f && !state.removing) {
             state.offsetX = state.targetOffsetX;
@@ -335,7 +375,7 @@ public class Notification extends Module {
 
         float scaleDiff = state.targetScale - state.scale;
         if (!state.removing && state.justCreated) {
-            float scaleEasing = easeOutBack(Math.min(1.0f, elapsed / (SLIDE_DURATION * 0.7f)));
+            float scaleEasing = easeOutBack(Math.min(1.0f, elapsed / (animateTime * 0.7f)));
             state.scale = 0.935f + (state.targetScale - 0.935f) * scaleEasing;
         } else if (state.removing) {
             long removeElapsed = elapsed;
@@ -354,211 +394,162 @@ public class Notification extends Module {
     }
 
     private float easeOutCubic(float t) {
-        return 1 - (float)Math.pow(1 - t, 3);
+        return 1 - (float) Math.pow(1 - t, 3);
     }
 
     private float easeOutBack(float t) {
         float c1 = 1.40158f;
         float c3 = c1 + 1;
-        return 1 + c3 * (float)Math.pow(t - 1, 3) + c1 * (float)Math.pow(t - 1, 2);
+        return 1 + c3 * (float) Math.pow(t - 1, 3) + c1 * (float) Math.pow(t - 1, 2);
     }
 
     private Framebuffer drawNotification(ModuleToggleNotification notification, float x, float y, float alpha) {
-        if (isNormal2()) {
-            return drawNormal2Notification(notification, x, y, alpha);
+        if (isExhibition()) {
+            return drawExhibitionNotification(notification, x, y, alpha);
         }
-        Framebuffer bloomBuffer = PostProcessing.beginBloom();
-        if (bloomBuffer != null) {
-            RenderUtil.drawRoundedRect(x, y, NOTIFICATION_WIDTH, NOTIFICATION_HEIGHT, NOTIFICATION_RADIUS, epilogue.module.modules.render.PostProcessing.getBloomColor());
-            mc.getFramebuffer().bindFramebuffer(false);
-        }
-
-        int bgAlphaValue = (int)(bgAlpha.getValue() * alpha);
-        int textAlphaValue = (int)(255 * alpha);
-
-        PostProcessing.drawBlur(x, y, x + NOTIFICATION_WIDTH, y + NOTIFICATION_HEIGHT, () -> () -> RenderUtil.drawRoundedRect(x, y, NOTIFICATION_WIDTH, NOTIFICATION_HEIGHT, NOTIFICATION_RADIUS, -1));
-
-        Color bgColor = new Color(0, 0, 0, bgAlphaValue);
-        RenderUtil.drawRoundedRect(x, y, NOTIFICATION_WIDTH, NOTIFICATION_HEIGHT, NOTIFICATION_RADIUS, bgColor);
-
-        drawNotificationContent(notification, x, y, textAlphaValue);
-        return bloomBuffer;
+        return drawEpilogueNotification(notification, x, y, alpha);
     }
 
-    private Framebuffer drawNormal2Notification(ModuleToggleNotification notification, float x, float y, float alpha) {
-        float width = getNormalWidth(notification);
-        float height = getNormal2Height();
-        float radius = 12f;
-
+    private Framebuffer drawEpilogueNotification(ModuleToggleNotification notification, float x, float y, float alpha) {
         Framebuffer bloomBuffer = PostProcessing.beginBloom();
         if (bloomBuffer != null) {
             RenderUtil.drawRoundedRect(x, y, width, height, radius, epilogue.module.modules.render.PostProcessing.getBloomColor());
             mc.getFramebuffer().bindFramebuffer(false);
         }
 
-        int bgAlphaValue = (int) (bgAlpha.getValue() * alpha);
-        int bg = new Color(0, 0, 0, bgAlphaValue).getRGB();
+        int bgAlphaValue = (int) (185 * alpha);
+        int textAlphaValue = (int) (255 * alpha);
 
         PostProcessing.drawBlur(x, y, x + width, y + height, () -> () -> RenderUtil.drawRoundedRect(x, y, width, height, radius, -1));
-        RenderUtil.drawRoundedRect(x, y, width, height, radius, bg);
 
-        Interface iface = (Interface) Epilogue.moduleManager.getModule("Interface");
-        int accent = iface != null ? iface.color(0) : 0xFF80FF95;
+        Color bgColor = new Color(10, 10, 10, bgAlphaValue);
+        RenderUtil.drawRoundedRect(x, y, width, height, radius, bgColor);
 
-        long elapsed = System.currentTimeMillis() - notification.timestamp;
-        float percentage = Math.min(1.0f, (float) elapsed / (float) NOTIFICATION_DURATION);
-        float barW = Math.max(0.0f, width * percentage - 5f);
-        RenderUtil.drawRect(x + 3, y + height - 3, barW, 1, ColorUtil.swapAlpha(accent, (int) (255 * alpha)));
+        float padding = 6.0f;
+        float titleY = y + padding;
 
         FontTransformer transformer = FontTransformer.getInstance();
-        Font titleFont = transformer.getFont("OpenSansSemiBold", 32);
-        Font descFont = transformer.getFont("OpenSansSemiBold", 26);
-        if (titleFont != null) {
-            CustomFontRenderer.drawStringWithShadow(notification.moduleName, x + 6, y + 4, ColorUtil.swapAlpha(0xFFFFFFFF, (int) (255 * alpha)), titleFont);
-        }
-        if (descFont != null) {
-            String desc = notification.enabled ? "Enabled" : "Disabled";
-            float descY = y + height - CustomFontRenderer.getFontHeight(titleFont != null ? titleFont : descFont);
-            CustomFontRenderer.drawStringWithShadow(desc, x + 6, descY, ColorUtil.swapAlpha(0xFFFFFFFF, (int) (255 * alpha)), descFont);
-        }
+        Font titleFont = transformer.getFont("OpenSansSemiBold", 30);
+        float titleH = titleFont != null ? CustomFontRenderer.getFontHeight(titleFont) : 10.0f;
 
+        float sidebarW = 2.5f;
+        float sidebarX = x;
+        float sidebarY = titleY;
+        float sidebarH = titleH;
+        int sidebarColor = ColorUtil.swapAlpha(getInterfaceColor(0), (int) (220.0f * alpha));
+        RenderUtil.drawRect(sidebarX, sidebarY, sidebarW, sidebarH, sidebarColor);
+
+        drawEpilogueContent(notification, x, y, textAlphaValue, titleFont, titleY, padding);
         return bloomBuffer;
     }
 
-    private void drawNotificationContent(ModuleToggleNotification notification, float x, float y, int alpha) {
+    private void drawEpilogueContent(ModuleToggleNotification notification, float x, float y, int alpha, Font titleFont, float titleY, float padding) {
         FontTransformer transformer = FontTransformer.getInstance();
-        Font titleFont = transformer.getFont("OpenSansSemiBold", 32);
-        Font contentFont = transformer.getFont("OpenSansSemiBold", 26);
+        Font contentFont = transformer.getFont("OpenSansSemiBold", 24);
 
-        float padding = 6f;
-        float iconSize = 12f;
-        float iconPadding = 5f;
+        float textX = x + padding;
 
-        float iconX = x + padding;
-        float iconY = y + (NOTIFICATION_HEIGHT - iconSize) / 2;
-        drawToggleIcon(iconX, iconY, iconSize, notification.enabled, alpha);
-
-        float textX = iconX + iconSize + iconPadding;
-        float titleY = y + padding + 2;
-
+        int textCol = ColorUtil.swapAlpha(0xFFFFFFFF, alpha);
         String title = notification.moduleName;
-        int titleColor = (alpha << 24) | 0xFFFFFF;
-        CustomFontRenderer.drawStringWithShadow(title, textX, titleY, titleColor, titleFont);
+        CustomFontRenderer.drawStringWithShadow(title, textX, titleY, textCol, titleFont);
 
-        String message = notification.enabled ? "Enabled" : "Disabled";
-        float messageY = titleY + CustomFontRenderer.getFontHeight(titleFont) + 2;
-        int messageColor = (alpha << 24) | (notification.enabled ? 0x00FF00 : 0xFF0000);
+        String stateText = notification.enabled ? "Enabled" : "Disabled";
+        int stateColBase = notification.enabled ? new Color(120, 255, 120).getRGB() : new Color(255, 120, 120).getRGB();
+        int stateCol = ColorUtil.swapAlpha(stateColBase, alpha);
+        float messageY = titleY + CustomFontRenderer.getFontHeight(titleFont) + 2.0f;
+        CustomFontRenderer.drawStringWithShadow(stateText, textX, messageY, stateCol, contentFont);
 
-        CustomFontRenderer.drawStringWithShadow(message, textX, messageY, messageColor, contentFont);
-
-        float progressBarHeight = 1.5f;
-        float progressBarY = y + NOTIFICATION_HEIGHT - progressBarHeight - 0.3f;
-        float progressBarX = x + 1f;
-        float progressBarWidth = NOTIFICATION_WIDTH - 2;
+        float barH = 1.0f;
+        float barPadding = 2.0f;
+        float barX = x + barPadding;
+        float barY = y + height - barH - barPadding;
+        float barW = width - barPadding * 2.0f;
 
         long elapsed = System.currentTimeMillis() - notification.timestamp;
-        float progress = 1.0f - Math.min(1.0f, (float)elapsed / (float)NOTIFICATION_DURATION);
-
-        if (progress > 0) {
-            float filledWidth = progressBarWidth * progress;
-
-            Interface interfaceModule = (Interface) Epilogue.moduleManager.getModule("Interface");
-            int baseColor = interfaceModule != null ? interfaceModule.color(0) : 0x8080FF;
-
-            int progressAlpha = (int)(alpha * 0.6f);
-            Color progressColor = new Color(
-                    (baseColor >> 16) & 0xFF,
-                    (baseColor >> 8) & 0xFF,
-                    baseColor & 0xFF,
-                    progressAlpha
-            );
-
-            RenderUtil.drawRoundedRect(progressBarX, progressBarY, filledWidth, progressBarHeight, 1f, progressColor);
+        float progress = 1.0f - Math.min(1.0f, (float) elapsed / (float) animateTime1);
+        if (progress > 0.0f) {
+            int baseColor = getInterfaceColor(0);
+            int progressCol = ColorUtil.swapAlpha(baseColor, (int) (alpha * 0.75f));
+            RenderUtil.drawRect(barX, barY, barW * progress, barH, progressCol);
         }
     }
 
-    private void drawToggleIcon(float x, float y, float size, boolean enabled, float alpha) {
-        GlStateManager.pushMatrix();
+    private Framebuffer drawExhibitionNotification(ModuleToggleNotification notification, float x, float y, float alpha) {
+        float width = getExhibitionWidth(notification);
+        float height = getExhibitionHeight();
+        int bg = new Color(0, 0, 0, (int) (220.0f * alpha)).getRGB();
+        RenderUtil.drawRect(x, y, width, height, bg);
+
+        long elapsed = System.currentTimeMillis() - notification.timestamp;
+        float percentage = Math.min(1.0f, (float) elapsed / (float) animateTime1);
+
+        int typeColor = notification.enabled ? new Color(65, 252, 65).getRGB() : new Color(226, 87, 76).getRGB();
+        float barX = x + (width * percentage);
+        float barY = y + height - 1.0f;
+        RenderUtil.drawRect(barX, barY, width - (width * percentage), 1.0f, ColorUtil.swapAlpha(typeColor, (int) (255.0f * alpha)));
+
+        float iconX = x + 2.0f;
+        float iconY = y + (height - 18.0f) / 2.0f - 1.0f;
+        ResourceLocation icon = notification.enabled ? e : d;
+        mc.getTextureManager().bindTexture(icon);
+        int tex = mc.getTextureManager().getTexture(icon).getGlTextureId();
+        GL11.glBindTexture(GL11.GL_TEXTURE_2D, tex);
+        int prevMin = GL11.glGetTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER);
+        int prevMag = GL11.glGetTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER);
+        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, GL11.GL_NEAREST);
+        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, GL11.GL_NEAREST);
+        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_S, GL12.GL_CLAMP_TO_EDGE);
+        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_T, GL12.GL_CLAMP_TO_EDGE);
+
         GlStateManager.enableBlend();
         GlStateManager.tryBlendFuncSeparate(770, 771, 1, 0);
-        GlStateManager.enableTexture2D();
         GlStateManager.color(1.0f, 1.0f, 1.0f, alpha);
+        Gui.drawModalRectWithCustomSizedTexture((int) iconX, (int) iconY, 0, 0, 18, 18, 18.0f, 18.0f);
+        GlStateManager.color(1.0f, 1.0f, 1.0f, 1.0f);
 
-        mc.getTextureManager().bindTexture(enabled ? ENABLE_ICON : DISABLE_ICON);
+        GL11.glBindTexture(GL11.GL_TEXTURE_2D, tex);
+        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, prevMin);
+        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, prevMag);
 
-        net.minecraft.client.gui.Gui.drawModalRectWithCustomSizedTexture(
-                (int)x, (int)y, 0, 0, (int)size, (int)size, size, size
-        );
+        FontTransformer transformer = FontTransformer.getInstance();
+        Font titleFont = transformer.getFont("Inter_Regular", 36);
+        Font descFont = transformer.getFont("Inter_Regular", 28);
+        int textCol = ColorUtil.swapAlpha(0xFFFFFFFF, (int) (255.0f * alpha));
 
-        GlStateManager.disableBlend();
-        GlStateManager.popMatrix();
+        float textX = x + 21.5f;
+        if (titleFont != null) {
+            CustomFontRenderer.drawStringWithShadow("Module", textX, y + 4.5f, textCol, titleFont);
+        }
+        if (descFont != null) {
+            String stateText = notification.enabled ? "Enabled" : "Disabled";
+            int stateCol = notification.enabled ? new Color(65, 252, 65).getRGB() : new Color(226, 87, 76).getRGB();
+
+            String prefix = notification.moduleName + " ";
+            CustomFontRenderer.drawStringWithShadow(prefix, textX, y + 15.5f, textCol, descFont);
+            float stateX = textX + CustomFontRenderer.getStringWidth(prefix, descFont);
+            CustomFontRenderer.drawStringWithShadow(stateText, stateX, y + 15.5f, ColorUtil.swapAlpha(stateCol, (int) (255.0f * alpha)), descFont);
+        }
+        float barH = 1.0f;
+        float barPadding = 2.0f;
+        float barX1 = x + barPadding;
+        float barY1 = y + height - barH - barPadding;
+        float barW = width - barPadding * 2.0f;
+
+        long elapsed1 = System.currentTimeMillis() - notification.timestamp;
+        float progress = 1.0f - Math.min(1.0f, (float) elapsed1 / (float) animateTime1);
+        if (progress > 0.0f) {
+            int baseColor = getInterfaceColor(0);
+            int progressCol = ColorUtil.swapAlpha(baseColor, (int) (alpha * 0.75f));
+            RenderUtil.drawRect(barX1, barY1, barW * progress, barH, progressCol);
+        }
+        return null;
     }
 
-
-    private void drawDropShadow(float x, float y, float width, float height, float cornerRadius, float alphaMultiplier) {
-        float radius = shadowRadius;
-        float spread = shadowSpread;
-        float baseAlpha = shadowAlpha * alphaMultiplier;
-
-        if (radius <= 0 || baseAlpha <= 0) return;
-
-        GlStateManager.pushMatrix();
-        GlStateManager.enableBlend();
-        GlStateManager.tryBlendFuncSeparate(770, 771, 1, 0);
-        GlStateManager.disableTexture2D();
-
-        float spreadDistance = radius * spread;
-        float blurDistance = radius - spreadDistance;
-
-        int samples = Math.max(10, Math.min(24, (int)(radius * 1.8f)));
-
-        for (int i = 0; i < samples; i++) {
-            float t = (float)i / (float)(samples - 1);
-
-            float currentSpread = t * spreadDistance;
-            float currentBlur = t * blurDistance;
-            float totalOffset = currentSpread + currentBlur;
-
-            float alpha;
-            if (t <= spread) {
-                alpha = 0.6f * baseAlpha;
-            } else {
-                float blurProgress = (t - spread) / (1.0f - spread);
-                alpha = 0.6f * baseAlpha * (1.0f - blurProgress * blurProgress);
-            }
-
-            float shadowX = x - totalOffset;
-            float shadowY = y - totalOffset;
-            float shadowWidth = width + totalOffset * 2.0f;
-            float shadowHeight = height + totalOffset * 2.0f;
-
-            drawGaussianBlurredRect(shadowX, shadowY, shadowWidth, shadowHeight, cornerRadius, alpha);
+    private int getInterfaceColor(int index) {
+        Module m = Epilogue.moduleManager.getModule("Interface");
+        if (m instanceof Interface) {
+            return ((Interface) m).color(index);
         }
-
-        GlStateManager.enableTexture2D();
-        GlStateManager.disableBlend();
-        GlStateManager.popMatrix();
-    }
-
-    private void drawGaussianBlurredRect(float x, float y, float width, float height, float cornerRadius, float alpha) {
-        int blurLayers = 3;
-        float blurSpread = 2.5f;
-
-        for (int layer = 0; layer < blurLayers; layer++) {
-            float layerProgress = (float)layer / (float)blurLayers;
-            float layerAlpha = alpha * (1.0f - layerProgress * 0.35f);
-            float layerExpand = layerProgress * blurSpread;
-
-            float layerX = x - layerExpand;
-            float layerY = y - layerExpand;
-            float layerWidth = width + layerExpand * 2.0f;
-            float layerHeight = height + layerExpand * 2.0f;
-
-            RenderUtil.drawRoundedRect(
-                    layerX, layerY, layerWidth, layerHeight,
-                    cornerRadius,
-                    new Color(0, 0, 0, (int)(layerAlpha * 255))
-            );
-        }
+        return 0x8080FF;
     }
 }

@@ -9,7 +9,6 @@ import epilogue.module.modules.misc.*;
 import epilogue.module.modules.movement.*;
 import epilogue.module.modules.player.*;
 import epilogue.module.modules.render.*;
-import epilogue.module.modules.render.dynamicisland.*;
 import epilogue.module.ModuleManager;
 import epilogue.util.MathUtil;
 import epilogue.value.Value;
@@ -97,7 +96,6 @@ public class Epilogue {
         moduleManager.modules.put(ChestView.class, new ChestView());
         moduleManager.modules.put(ClickGUI.class, new ClickGUI());
         moduleManager.modules.put(CloudMusicModule.class, new CloudMusicModule());
-        moduleManager.modules.put(DynamicIsland.class, new DynamicIsland());
         moduleManager.modules.put(Disabler.class, new Disabler());
         moduleManager.modules.put(Eagle.class, new Eagle());
         moduleManager.modules.put(ESP.class, new ESP());

@@ -2,7 +2,6 @@ package epilogue.module;
 
 import epilogue.Epilogue;
 import epilogue.module.modules.render.Notification;
-import epilogue.module.modules.render.dynamicisland.notification.NotificationManager;
 import epilogue.util.KeyBindUtil;
 import epilogue.util.render.animations.Translate;
 import epilogue.util.render.animations.advanced.Animation;
@@ -75,8 +74,6 @@ public abstract class Module {
         this.setEnabled(enabled);
         if (this.enabled == enabled) {
             Epilogue.moduleManager.playSound(enabled);
-            
-            NotificationManager.getInstance().addModuleNotification(this.name, enabled);
 
             Notification notifDisplay = Notification.getInstance();
             

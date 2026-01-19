@@ -53,19 +53,12 @@ public class ModeComponent extends SettingComponent<ModeValue> {
 
         if (open.getOutput() > 0.1) {
             float totalHeight = (float) ((setting.getModes().length * 20 + 2) * open.getOutput());
-            float halfTotalHeight = getHalfTotalHeight();
+            getHalfTotalHeight();
 
             GlStateManager.translate(0, 0, 2f);
 
             if (embeddedInDynamicIsland) {
                 int bgA = 40;
-                try {
-                    epilogue.module.modules.render.dynamicisland.DynamicIsland di = (epilogue.module.modules.render.dynamicisland.DynamicIsland) epilogue.Epilogue.moduleManager.modules.get(epilogue.module.modules.render.dynamicisland.DynamicIsland.class);
-                    if (di != null) {
-                        bgA = di.bgAlpha.getValue();
-                    }
-                } catch (Exception ignored) {
-                }
                 int alphaRect = (bgA << 24);
                 float fx = x + 10;
                 float fy = y + 32;
@@ -94,13 +87,6 @@ public class ModeComponent extends SettingComponent<ModeValue> {
 
         if (embeddedInDynamicIsland) {
             int bgA = 40;
-            try {
-                epilogue.module.modules.render.dynamicisland.DynamicIsland di = (epilogue.module.modules.render.dynamicisland.DynamicIsland) epilogue.Epilogue.moduleManager.modules.get(epilogue.module.modules.render.dynamicisland.DynamicIsland.class);
-                if (di != null) {
-                    bgA = di.bgAlpha.getValue();
-                }
-            } catch (Exception ignored) {
-            }
             int alphaRect = (bgA << 24);
             float fx = x + 10;
             float fy = y + 14;

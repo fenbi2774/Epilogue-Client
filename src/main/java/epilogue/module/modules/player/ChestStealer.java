@@ -8,7 +8,6 @@ import epilogue.events.WindowClickEvent;
 import epilogue.module.Module;
 import epilogue.util.ChatUtil;
 import epilogue.util.ItemUtil;
-import epilogue.module.modules.render.dynamicisland.notification.ChestData;
 import epilogue.value.values.BooleanValue;
 import epilogue.value.values.IntValue;
 import epilogue.value.values.ModeValue;
@@ -58,8 +57,6 @@ public class ChestStealer extends Module {
     @EventTarget
     public void onUpdate(UpdateEvent event) {
         if (event.getType() == EventType.PRE) {
-            ChestData.getInstance().updateChestData();
-            ChestData.getInstance().updateAnimations();
             if (this.clickDelay > 0) {
                 this.clickDelay--;
             }
@@ -152,7 +149,6 @@ public class ChestStealer extends Module {
                                     double damage = swordInInventorySlot != -1 ? ItemUtil.getAttackBonus(mc.thePlayer.inventory.getStackInSlot(swordInInventorySlot)) : 0.0;
                                     if (bestDamage > damage) {
                                         this.shiftClick(container.windowId, bestSword);
-                                        ChestData.getInstance().addClickAnimation(bestSword);
                                         return;
                                     }
                                     for (int i = 0; i < 4; i++) {
@@ -162,7 +158,6 @@ public class ChestStealer extends Module {
                                                 : 0.0;
                                         if (bestArmorProtection[i] > protectionLevel) {
                                             this.shiftClick(container.windowId, bestArmorSlots[i]);
-                                            ChestData.getInstance().addClickAnimation(bestArmorSlots[i]);
                                             return;
                                         }
                                     }
@@ -170,21 +165,18 @@ public class ChestStealer extends Module {
                                     float pickaxeEfficiency = pickaxeSlot != -1 ? ItemUtil.getToolEfficiency(mc.thePlayer.inventory.getStackInSlot(pickaxeSlot)) : 1.0F;
                                     if (bestPickaxeEfficiency > pickaxeEfficiency) {
                                         this.shiftClick(container.windowId, bestPickaxeSlot);
-                                        ChestData.getInstance().addClickAnimation(bestPickaxeSlot);
                                         return;
                                     }
                                     int shovelSlot = ItemUtil.findInventorySlot("shovel", 0, true);
                                     float shovelEfficiency = shovelSlot != -1 ? ItemUtil.getToolEfficiency(mc.thePlayer.inventory.getStackInSlot(shovelSlot)) : 1.0F;
                                     if (bestShovelEfficiency > shovelEfficiency) {
                                         this.shiftClick(container.windowId, bestShovelSlot);
-                                        ChestData.getInstance().addClickAnimation(bestShovelSlot);
                                         return;
                                     }
                                     int axeSlot = ItemUtil.findInventorySlot("axe", 0, true);
                                     float efficiency = axeSlot != -1 ? ItemUtil.getToolEfficiency(mc.thePlayer.inventory.getStackInSlot(axeSlot)) : 1.0F;
                                     if (bestAxeEfficiency > efficiency) {
                                         this.shiftClick(container.windowId, bestAxeSlot);
-                                        ChestData.getInstance().addClickAnimation(bestAxeSlot);
                                         return;
                                     }
                                     if (hasThrowables) {
@@ -194,7 +186,6 @@ public class ChestStealer extends Module {
                                                 Item item = stack.getItem();
                                                 if (item instanceof ItemSnowball || item instanceof ItemEgg) {
                                                     this.shiftClick(container.windowId, i);
-                                                    ChestData.getInstance().addClickAnimation(i);
                                                     return;
                                                 }
                                             }
@@ -306,7 +297,6 @@ public class ChestStealer extends Module {
                                     }
                                     for (int slot : itemsToSteal) {
                                         this.shiftClick(container.windowId, slot);
-                                        ChestData.getInstance().addClickAnimation(slot);
                                     }
                                     mc.thePlayer.closeScreen();
                                 } else {
@@ -315,7 +305,6 @@ public class ChestStealer extends Module {
                                             ItemStack stack = container.getSlot(i).getStack();
                                             if (!(java.lang.Boolean) this.skipTrash.getValue() || !ItemUtil.isNotSpecialItem(stack)) {
                                                 this.shiftClick(container.windowId, i);
-                                                ChestData.getInstance().addClickAnimation(i);
                                                 return;
                                             }
                                         }
@@ -344,7 +333,6 @@ public class ChestStealer extends Module {
     public void onWindowClick(WindowClickEvent event) {
         this.clickDelay = RandomUtils.nextInt(this.minDelay.getValue() + 1, this.maxDelay.getValue() + 2);
         if (event.getSlotId() < 54) {
-            ChestData.getInstance().addClickAnimation(event.getSlotId());
             
             epilogue.module.modules.render.ChestView chestView =
                 (epilogue.module.modules.render.ChestView) Epilogue.moduleManager.getModule("ChestView");

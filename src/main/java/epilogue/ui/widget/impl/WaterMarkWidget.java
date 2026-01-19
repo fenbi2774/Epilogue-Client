@@ -26,7 +26,7 @@ public class WaterMarkWidget extends Widget {
         Module m = Epilogue.moduleManager.getModule("WaterMark");
         if (!(m instanceof WaterMark)) return;
         WaterMark wm = (WaterMark) m;
-        wm.render(renderX, renderY);
+        wm.render(renderX, renderY, partialTicks);
         this.width = wm.getLastWidth();
         this.height = wm.getLastHeight();
     }
