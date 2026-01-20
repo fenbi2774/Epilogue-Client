@@ -26,8 +26,11 @@ jobs:
         run: chmod +x ./gradlew
 
       # 4. 构建（跳过测试可加 -x test）
-      - name: Build with Gradle
-        run: ./gradlew clean build
+      - name: clean with Gradle
+        run: ./gradlew clean
+
+      - name: build
+        run: ./gradlew build
 
       # 5. 上传构建产物（可按需调整 path）
       - name: Upload build artifacts
